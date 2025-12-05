@@ -1,0 +1,7 @@
+{
+  "[html]": {
+    "editor.defaultFormatter": "prettier.prettier-vscode",
+    "editor.formatOnSave": true
+  },
+  "tailwindCSS.experimental.classRegex": [["clsx\\(([^)]*)\\)", "(?:'|\"|`)([^']*)(?:'|\"|`)"]]
+}
