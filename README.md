@@ -1,156 +1,206 @@
-# PracticeAngular
+# 2.1 Standalone Components
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 21.0.0.
+**Angular 21 embraces standalone components as the default architecture.** No more NgModules clutter—components directly import what they need. This reduces boilerplate, improves tree-shaking, and makes lazy-loading trivial.
 
-## Development server
+## Why Standalone Components Matter
 
-To start a local development server, run:
+```
+Traditional (Module-based)          | Standalone (Angular 21 default)
+-----------------------------------|----------------------------------
+- NgModule boilerplate              | ✅ Zero module boilerplate
+- Import/export complexity          | ✅ Direct imports
+- Tree-shaking limitations          | ✅ Better tree-shaking
+- Lazy loading complexity           | ✅ Trivial route-level lazy loading
+- Mental overhead (module vs comp)  | ✅ Single mental model
+```
+
+## Real-World Setup: Task Dashboard
+
+We'll build a task management dashboard starting with a standalone task list.
+
+### Step 1: Create Standalone Components
+
+From your `main` branch:
 
 ```bash
-ng serve
+git checkout main
+git checkout -b 2.1-standalone-components
+ng g c components/task-list --standalone --inline-template --inline-style --skip-tests --type=component
+ng g c components/task-item --standalone --inline-template --inline-style --skip-tests --type=component
 ```
 
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
+### Step 2: TaskItem Component (Presentational)
 
-## Code scaffolding
+**`components/task-item/task-item.component.ts`**
 
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
+```typescript
+import { Component, input } from '@angular/core';
+import { CommonModule } from '@angular/common';
 
-```bash
-ng generate component component-name
-```
+export interface Task {
+  id: number;
+  title: string;
+  completed: boolean;
+}
 
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
-
-```bash
-ng generate --help
-```
-
-## Building
-
-To build the project run:
-
-```bash
-ng build
-```
-
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
-
-## Running unit tests
-
-To execute unit tests with the [Karma](https://karma-runner.github.io) test runner, use the following command:
-
-```bash
-ng test
-```
-
-## Running end-to-end tests
-
-For end-to-end (e2e) testing, run:
-
-```bash
-ng e2e
-```
-
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
-
-## Additional Resources
-
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
-
-## Add Tailwind CSS to Angular Project (Angular 21+)
-
-### Reference
-
-> https://angular.dev/guide/tailwind
-
-```sh
-ng add tailwindcss
-```
-
-## Switch from CSS to SCSS
-
-**Short answer:** Yes, you can switch your Angular project from plain CSS to SCSS even with TailwindCSS configured. Tailwind and SCSS don’t conflict — Tailwind is processed via PostCSS, while SCSS is compiled by Angular’s build pipeline. The latest guidance shows they work together smoothly if you configure imports correctly.
-
----
-
-## 🔎 Step‑by‑Step: Switching to SCSS with TailwindCSS
-
-### 1. Change Angular project style to SCSS
-
-- Update `angular.json`:
-  ```json
-  "styles": [
-    "src/styles.scss"
-  ]
-  ```
-- Rename `src/styles.css` → `src/styles.scss`.
-- If you want component styles in SCSS, run:
-  ```sh
-  ng config schematics.@schematics/angular:component.style scss
-  ```
-  This ensures new components use `.scss`.
-- In `src/styles.scss`, import Tailwind:
-
-  ```scss
-  @use 'tailwindcss';
-
-  // Your custom SCSS after Tailwind
-  body {
-    font-family: sans-serif;
-  }
-  ```
-
-  > ⚠️ Note: Tailwind v4 deprecated `@import "tailwindcss";` in SCSS. Use `@use "tailwindcss";` instead.
-
----
-
-## ⚠️ Risks & Trade‑offs
-
-- **Import order matters**: Always load Tailwind first (`@use "tailwindcss";`) then your SCSS overrides.
-- **@apply limitations**: Tailwind’s `@apply` works in SCSS, but avoid applying responsive variants (`sm:`, `md:`) inside SCSS — use them directly in templates.
-- **Build performance**: SCSS + Tailwind adds compilation steps, but Angular CLI handles them efficiently.
-
----
-
-## generate a card componet to test tailwind css
-
-Let's generate a card component with inline template and inline style
-
-```sh
-ng g c component/card --skip-tests -t -s
-```
-
-update it as:
-
-```ts
-
-```
-
-## Vs Code Extension Setup
-
-- https://marketplace.visualstudio.com/items?itemName=bradlc.vscode-tailwindcss
-- https://marketplace.visualstudio.com/items?itemName=prettier.prettier-vscode
-
-```sh
-pnpm add -D prettier-plugin-tailwindcss
-```
-
-create `.prettierrc`
-
-```
-{
-    "plugins": ["prettier-plugin-tailwindcssS"]
+@Component({
+  selector: 'app-task-item',
+  standalone: true,
+  imports: [CommonModule],
+  template: `
+    <div
+      class="flex items-center p-4 border rounded-lg bg-white shadow-sm hover:shadow-md transition-all"
+    >
+      <input type="checkbox" [checked]="task().completed" class="w-5 h-5 rounded mr-4" disabled />
+      <span class="flex-1 text-gray-900 font-medium line-clamp-1">
+        {{ task().title }}
+      </span>
+      <span
+        class="px-3 py-1 text-xs font-semibold rounded-full
+        {{ task().completed ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800' }}"
+      >
+        {{ task().completed ? 'Done' : 'Pending' }}
+      </span>
+    </div>
+  `,
+  styles: [
+    `
+      .line-clamp-1 {
+        display: -webkit-box;
+        -webkit-line-clamp: 1;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+      }
+    `,
+  ],
+})
+export class TaskItemComponent {
+  task = input.required<Task>();
 }
 ```
 
-Update vs code setting
+### Step 3: TaskList Component (Smart Container)
 
-- set formatter to prettier
-  ![setting](image.png)
+**`components/task-list/task-list.component.ts`**
 
-## ✅ Recommendation
+```typescript
+import { CommonModule } from '@angular/common';
+import { Component, signal } from '@angular/core';
+import { TaskItem } from '../task-item/task-item.component';
+import { Task } from '../../models/Task';
 
-- Switch your global styles to SCSS (`styles.scss`).
-- Use `@use "tailwindcss";` at the top of `styles.scss`.
-- Keep component styles in SCSS for nesting/variables, and use Tailwind utilities in templates.
+@Component({
+  selector: 'app-task-list',
+  imports: [CommonModule, TaskItem],
+  template: `
+    <div class="max-w-2xl mx-auto p-6 bg-linear-to-br from-blue-50 to-indigo-100 min-h-screen">
+      <!-- Header -->
+      <div class="text-center mb-8">
+        <h1
+          class="text-4xl font-bold bg-linear-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2"
+        >
+          Task Dashboard
+        </h1>
+        <p class="text-gray-600">Modern Angular 21 • Standalone Components</p>
+      </div>
+
+      <!-- Tasks -->
+      <div class="space-y-3">
+        <app-task-item *ngFor="let task of tasks()" [task]="task"></app-task-item>
+      </div>
+
+      <!-- Empty State -->
+      <div *ngIf="tasks().length === 0" class="text-center py-12 text-gray-500">
+        <div
+          class="w-24 h-24 mx-auto mb-4 bg-gray-100 rounded-2xl flex items-center justify-center"
+        >
+          📝
+        </div>
+        <h3 class="text-xl font-semibold mb-2">No tasks yet</h3>
+        <p>Add your first task to get started!</p>
+      </div>
+    </div>
+  `,
+  styles: ``,
+})
+export class TaskList {
+  // Signal-based state (Angular 21 style)
+  tasks = signal<Task[]>([
+    { id: 1, title: '✅ Review Angular 21 signals', completed: true },
+    { id: 2, title: '🚀 Implement standalone components', completed: false },
+    { id: 3, title: '📱 Build responsive task UI', completed: false },
+    { id: 4, title: '🧪 Write component tests', completed: false },
+  ]);
+}
+```
+
+### Step 4: Update App Component
+
+**`app.component.ts`**
+
+```typescript
+import { Component } from '@angular/core';
+import { TaskListComponent } from './components/task-list/task-list.component';
+import { RouterOutlet } from '@angular/router';
+import { CommonModule } from '@angular/common';
+
+@Component({
+  selector: 'app-root',
+  standalone: true,
+  imports: [CommonModule, TaskListComponent, RouterOutlet],
+  template: `
+    <main class="min-h-screen bg-linear-to-br from-slate-50 to-slate-200">
+      <app-task-list />
+    </main>
+  `,
+})
+export class AppComponent {
+  title = 'practice-angular';
+}
+```
+
+### Step 5: Remove App Module (Angular 21 Style)
+
+Delete `app.config.ts` if it exists, or ensure your `main.ts` uses bootstrapApplication:
+
+**`main.ts`**
+
+```typescript
+import { bootstrapApplication } from '@angular/platform-browser';
+import { AppComponent } from './app/app.component';
+import { provideRouter } from '@angular/router';
+import { provideAnimations } from '@angular/platform-browser/animations';
+import { importProvidersFrom } from '@angular/core';
+import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
+
+bootstrapApplication(AppComponent, {
+  providers: [provideRouter([]), provideAnimations(), importProvidersFrom(BrowserAnimationsModule)],
+}).catch((err) => console.error(err));
+```
+
+## Key Takeaways
+
+✅ **Direct imports**: `TaskListComponent` imports `TaskItemComponent` directly
+✅ **No NgModule**: Zero module boilerplate
+✅ **Signals for state**: Modern reactive state management
+✅ **Tailwind + Angular**: Perfect harmony
+✅ **Tree-shakable**: Unused code gets eliminated
+
+## Commit & Push
+
+```bash
+git add .
+git commit -m "2.1: Standalone components with Task Dashboard
+- TaskItem (presentational)
+- TaskList (container)
+- Signal-based state
+- Tailwind styling
+- No NgModules 🎉"
+git push -u origin 2.1-standalone-components
+```
+
+**Live Demo**: `http://localhost:4200` shows your first standalone Task Dashboard!
+
+---
+
+**Next up**: 2.2 Inputs & Outputs—adding task editing, deletion, and parent-child communication.
