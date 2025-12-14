@@ -49,7 +49,7 @@ export interface Task {
   imports: [CommonModule],
   template: `
     <div
-      class="flex items-center p-4 border rounded-lg bg-white shadow-sm hover:shadow-md transition-all"
+      class="flex items-center p-4 mb-1 border rounded-lg bg-white shadow-sm hover:shadow-md hover:bg-cyan-50 transition-all"
     >
       <input type="checkbox" [checked]="task().completed" class="w-5 h-5 rounded mr-4" disabled />
       <span class="flex-1 text-gray-900 font-medium line-clamp-1">
