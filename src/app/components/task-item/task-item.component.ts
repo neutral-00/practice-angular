@@ -1,5 +1,5 @@
-import { Component, input } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { Component, input, output } from '@angular/core';
 import { Task } from '../../models/Task';
 
 @Component({
@@ -9,8 +9,18 @@ import { Task } from '../../models/Task';
     <div
       class="flex items-center p-4 mb-1 border rounded-lg bg-white shadow-sm hover:shadow-md hover:bg-cyan-50 transition-all"
     >
-      <input type="checkbox" [checked]="task().completed" class="w-5 h-5 rounded mr-4" disabled />
-      <span class="flex-1 text-gray-900 font-medium line-clamp-1">
+      <input
+        type="checkbox"
+        [checked]="task().completed"
+        (click)="toggleTask()"
+        class="w-5 h-5 rounded mr-4 cursor-pointer"
+      />
+      <span
+        #titleRef
+        class="flex-1 text-gray-900 font-medium line-clamp-1 cursor-pointer"
+        (click)="toggleTask()"
+        [attr.title]="task().title.length > 40 ? task().title : null"
+      >
         {{ task().title }}
       </span>
       <span
@@ -32,4 +42,12 @@ import { Task } from '../../models/Task';
 })
 export class TaskItem {
   task = input.required<Task>();
+
+  // ✅ Output: Child → Parent communication
+  taskToggled = output<Task>();
+
+  toggleTask() {
+    const toggledTask = { ...this.task(), completed: !this.task().completed };
+    this.taskToggled.emit(toggledTask);
+  }
 }
