@@ -1,111 +1,182 @@
-# 2.2 Inputs & Outputs
+# 2.3 Component Communication Patterns
 
-Standalone components communicate via **Inputs** (parent → child) and **Outputs** (child → parent). Angular 21 enhances this with **signal inputs** for reactivity.
+Master multiple ways components talk to each other: **Inputs/Outputs**, **Services**, **ViewChild**, and **Signals**. Real-world apps need all these patterns.
 
 ## Project Metadata
 
 - Repository: [https://github.com/neutral-00/practice-angular](https://github.com/neutral-00/practice-angular)
-- **Parent Branch:** `2.1-standalone-components`
-- **Branch:** `2.2-inputs-and-outputs`
+- **Parent Branch:** `2.2-inputs-and-outputs`
+- **Branch:** `2.3-component-communication`
 
 ## 📁 Branch Setup
 
 ```bash
-git checkout 2.1-standalone-components
-git checkout -b 2.2-inputs-and-outputs
+git checkout 2.2-inputs-and-outputs
+git checkout -b 2.3-component-communication
 ```
 
 ## Keep or Reuse
 
-- ✅ `src/app/models/task.model.ts` (Task interface)
-- ✅ `components/task-item/` (your updated hover template)
-- ✅ `components/task-list/` (signal state + stats)
-- ✅ `app.component.ts` (root setup)
+- ✅ `src/app/models/Task.ts` (your Task model)
+- ✅ `components/task-item/` (your updated template w/ title click + tooltip)
+- ✅ `components/task-list/` (inputs/outputs + stats)
+- ✅ `app.component.ts`
 
-## Step 1: Update TaskItem - Add Toggle Output
+## Step 1: Add Task Form Component (New)
 
-**`components/task-item/task-item.component.ts`**
+```bash
+ng g c components/task-form --standalone --inline-template --inline-style --skip-tests
+```
+
+**`components/task-form/task-form.component.ts`**
 
 ```typescript
+import { Component, output, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Component, input, output } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { Task } from '../../models/Task';
 
 @Component({
-  selector: 'app-task-item',
-  imports: [CommonModule],
+  selector: 'app-task-form',
+  standalone: true,
+  imports: [CommonModule, FormsModule],
   template: `
-    <div
-      class="flex items-center p-4 mb-1 border rounded-lg bg-white shadow-sm hover:shadow-md hover:bg-cyan-50 transition-all"
-    >
-      <input
-        type="checkbox"
-        [checked]="task().completed"
-        (click)="toggleTask()"
-        class="w-5 h-5 rounded mr-4 cursor-pointer"
-      />
-      <span
-        #titleRef
-        class="flex-1 text-gray-900 font-medium line-clamp-1 cursor-pointer"
-        (click)="toggleTask()"
-        [attr.title]="task().title.length > 40 ? task().title : null"
-      >
-        {{ task().title }}
-      </span>
-      <span
-        class="px-3 py-1 text-xs font-semibold rounded-full
-        {{ task().completed ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800' }}"
-      >
-        {{ task().completed ? 'Done' : 'Pending' }}
-      </span>
-    </div>
+    <form (ngSubmit)="addTask()" class="bg-white p-6 rounded-2xl shadow-lg mb-8">
+      <div class="flex gap-4">
+        <input
+          [(ngModel)]="newTaskTitle"
+          name="taskTitle"
+          placeholder="Add new task..."
+          class="flex-1 px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
+        />
+        <button
+          type="submit"
+          [disabled]="!newTaskTitle.trim()"
+          class="px-6 py-3 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all shadow-lg hover:shadow-xl"
+        >
+          Add Task
+        </button>
+      </div>
+    </form>
   `,
-  styles: `
-    .line-clamp-1 {
-      display: -webkit-box;
-      -webkit-line-clamp: 1;
-      -webkit-box-orient: vertical;
-      overflow: hidden;
-    }
-  `,
+  styles: [
+    `
+      input:focus {
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+      }
+    `,
+  ],
 })
-export class TaskItem {
-  task = input.required<Task>();
+export class TaskFormComponent {
+  newTaskTitle = '';
+  taskAdded = output<Task>();
 
-  // ✅ Output: Child → Parent communication
-  taskToggled = output<Task>();
+  addTask() {
+    if (!this.newTaskTitle.trim()) return;
 
-  toggleTask() {
-    const toggledTask = { ...this.task(), completed: !this.task().completed };
-    this.taskToggled.emit(toggledTask);
+    const newTask: Task = {
+      id: Date.now(),
+      title: this.newTaskTitle.trim(),
+      completed: false,
+    };
+
+    this.taskAdded.emit(newTask);
+    this.newTaskTitle = '';
   }
 }
 ```
 
-## Step 2: Update TaskList - Handle Child Events
+## Step 2: Task Actions Component (Delete + Filter)
+
+```bash
+ng g c components/task-actions --standalone --inline-template --inline-style --skip-tests
+```
+
+**`components/task-actions/task-actions.component.ts`**
+
+```typescript
+import { Component, input, output } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
+
+@Component({
+  selector: 'app-task-actions',
+  standalone: true,
+  imports: [CommonModule, FormsModule],
+  template: `
+    <div
+      class="flex gap-4 items-center justify-between mb-6 p-4 bg-white/50 backdrop-blur rounded-xl"
+    >
+      <!-- Filter -->
+      <select
+        [(ngModel)]="filterMode"
+        name="filter"
+        class="px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 bg-white"
+        (change)="filterChanged()"
+      >
+        <option value="all">All Tasks</option>
+        <option value="active">Active</option>
+        <option value="completed">Completed</option>
+      </select>
+
+      <!-- Delete All -->
+      <button
+        (click)="deleteAllCompleted()"
+        [disabled]="totalCompleted() === 0"
+        class="px-6 py-2 bg-red-600 text-white text-sm font-semibold rounded-xl hover:bg-red-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all"
+      >
+        Delete Completed ({{ totalCompleted() }})
+      </button>
+    </div>
+  `,
+})
+export class TaskActionsComponent {
+  tasks = input.required<Task[]>();
+  filterMode = 'all';
+
+  filterChanged = output<string>();
+  deleteCompleted = output<void>();
+
+  get totalCompleted() {
+    return this.tasks().filter((t) => t.completed).length;
+  }
+
+  filterChanged() {
+    this.filterChanged.emit(this.filterMode);
+  }
+
+  deleteAllCompleted() {
+    this.deleteCompleted.emit();
+  }
+}
+```
+
+## Step 3: Enhanced TaskList (Orchestrates All Patterns)
 
 **`components/task-list/task-list.component.ts`**
 
 ```typescript
-import { Component, signal, computed } from '@angular/core';
+import { Component, signal, computed, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { TaskItemComponent } from '../task-item/task-item.component';
-import type { Task } from '../../models/task.model';
+import { TaskFormComponent } from '../task-form/task-form.component';
+import { TaskActionsComponent } from '../task-actions/task-actions.component';
+import { Task } from '../../models/Task';
 
 @Component({
   selector: 'app-task-list',
   standalone: true,
-  imports: [CommonModule, TaskItemComponent],
+  imports: [CommonModule, TaskItemComponent, TaskFormComponent, TaskActionsComponent],
   template: `
     <div class="max-w-2xl mx-auto p-6 bg-linear-to-br from-blue-50 to-indigo-100 min-h-screen">
-      <!-- Stats Cards -->
-      <div class="grid grid-cols-2 gap-4 mb-8 text-center">
-        <div class="p-4 bg-white/70 backdrop-blur rounded-xl shadow-lg">
-          <div class="text-3xl font-bold text-blue-600">{{ totalTasks() }}</div>
-          <div class="text-sm text-gray-600">Total</div>
+      <!-- Stats -->
+      <div class="grid grid-cols-2 gap-4 mb-6">
+        <div class="p-4 bg-white/70 backdrop-blur rounded-xl shadow-lg text-center">
+          <div class="text-3xl font-bold text-blue-600">{{ filteredTasks().length }}</div>
+          <div class="text-sm text-gray-600">{{ getFilterLabel() }}</div>
         </div>
-        <div class="p-4 bg-white/70 backdrop-blur rounded-xl shadow-lg">
-          <div class="text-3xl font-bold text-green-600">{{ completedTasks() }}</div>
+        <div class="p-4 bg-white/70 backdrop-blur rounded-xl shadow-lg text-center">
+          <div class="text-3xl font-bold text-green-600">{{ completedCount() }}</div>
           <div class="text-sm text-gray-600">Completed</div>
         </div>
       </div>
@@ -113,18 +184,30 @@ import type { Task } from '../../models/task.model';
       <!-- Header -->
       <div class="text-center mb-8">
         <h1
-          class="text-4xl font-bold bg-linear-to-r from-blue-600 to-purple-600 
-                    bg-clip-text text-transparent mb-2"
+          class="text-4xl font-bold bg-linear-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2"
         >
           Task Dashboard
         </h1>
-        <p class="text-gray-600">Angular 21 • Inputs & Outputs</p>
+        <p class="text-gray-600">Angular 21 • Communication Patterns</p>
       </div>
 
-      <!-- Interactive Tasks -->
+      <!-- 🎯 ALL PATTERNS BELOW -->
+
+      <!-- 1. TaskForm → TaskList (output → method) -->
+      <app-task-form (taskAdded)="addTask($event)"></app-task-form>
+
+      <!-- 2. TaskList → TaskActions (input) + TaskActions → TaskList (output) -->
+      <app-task-actions
+        [tasks]="tasks()"
+        (filterChanged)="setFilter($event)"
+        (deleteCompleted)="deleteCompletedTasks()"
+      >
+      </app-task-actions>
+
+      <!-- 3. TaskList → TaskItem (input) + TaskItem → TaskList (output) -->
       <div class="space-y-3">
         <app-task-item
-          *ngFor="let task of tasks()"
+          *ngFor="let task of filteredTasks()"
           [task]="task"
           (taskToggled)="updateTask($event)"
         >
@@ -132,14 +215,14 @@ import type { Task } from '../../models/task.model';
       </div>
 
       <!-- Empty State -->
-      <div *ngIf="tasks().length === 0" class="text-center py-12 text-gray-500">
+      <div *ngIf="filteredTasks().length === 0" class="text-center py-12 text-gray-500">
         <div
           class="w-24 h-24 mx-auto mb-4 bg-gray-100 rounded-2xl flex items-center justify-center"
         >
           📝
         </div>
-        <h3 class="text-xl font-semibold mb-2">No tasks yet</h3>
-        <p>Add your first task to get started!</p>
+        <h3 class="text-xl font-semibold mb-2">{{ getEmptyMessage() }}</h3>
+        <p>{{ getEmptySubMessage() }}</p>
       </div>
     </div>
   `,
@@ -152,60 +235,103 @@ export class TaskListComponent {
     { id: 4, title: '🧪 Write component tests', completed: false },
   ]);
 
-  // ✅ Computed signals (reactive derived state)
-  totalTasks = computed(() => this.tasks().length);
-  completedTasks = computed(() => this.tasks().filter((task) => task.completed).length);
+  filterMode = signal<'all' | 'active' | 'completed'>('all');
 
-  // ✅ Handle child → parent events
+  // Derived state
+  completedCount = computed(() => this.tasks().filter((t) => t.completed).length);
+  filteredTasks = computed(() => {
+    const tasks = this.tasks();
+    switch (this.filterMode()) {
+      case 'active':
+        return tasks.filter((t) => !t.completed);
+      case 'completed':
+        return tasks.filter((t) => t.completed);
+      default:
+        return tasks;
+    }
+  });
+
+  // 🎯 Communication Handlers
+  addTask(newTask: Task) {
+    this.tasks.update((tasks) => [...tasks, newTask]);
+  }
+
   updateTask(updatedTask: Task) {
-    this.tasks.update((tasks) =>
-      tasks.map((task) => (task.id === updatedTask.id ? updatedTask : task)),
+    this.tasks.update((tasks) => tasks.map((t) => (t.id === updatedTask.id ? updatedTask : t)));
+  }
+
+  setFilter(mode: string) {
+    this.filterMode.set(mode as any);
+  }
+
+  deleteCompletedTasks() {
+    this.tasks.set(this.tasks().filter((t) => !t.completed));
+  }
+
+  getFilterLabel() {
+    return (
+      {
+        all: 'All Tasks',
+        active: 'Active Tasks',
+        completed: 'Completed Tasks',
+      }[this.filterMode()] || 'All Tasks'
     );
+  }
+
+  getEmptyMessage() {
+    return this.filterMode() === 'active' ? 'No active tasks 🎉' : 'No tasks yet';
+  }
+
+  getEmptySubMessage() {
+    return this.filterMode() === 'active'
+      ? 'Great job completing everything!'
+      : 'Add your first task above!';
   }
 }
 ```
 
-## Communication Flow
+## Communication Patterns Summary
 
-```
-Parent (TaskList) ──[task]───→ Child (TaskItem)
-     ↑                                   ↓
-  (taskToggled) ←←←←←←←←←←←←←←←←←←←←←←←←
-```
+| Pattern             | Direction    | Example                                       |
+| ------------------- | ------------ | --------------------------------------------- |
+| **Inputs/Outputs**  | Parent↔Child | `[tasks]="tasks()"` `(taskAdded)="addTask()"` |
+| **Signal Inputs**   | Parent→Child | `tasks = input.required<Task[]>()`            |
+| **Two-way binding** | Child↔Parent | `[(ngModel)]="newTaskTitle"`                  |
+| **Event Outputs**   | Child→Parent | `(filterChanged)="setFilter($event)"`         |
 
-## Test Interactive Features
+## Test All Features
 
 ```bash
 ng serve
 ```
 
-**Expected Results:**
+**Expected:**
 
-- ✅ Click checkboxes → tasks toggle instantly
-- ✅ Stats cards update automatically
-- ✅ Hover cyan effect on your TaskItem
-- ✅ Signal reactivity throughout
+- ✅ Add new tasks (form → list)
+- ✅ Toggle tasks (item → list)
+- ✅ Filter tasks (actions → list)
+- ✅ Delete completed (actions → list)
+- ✅ Your title click + tooltip preserved
 
-## Commit & Push
+## Commit
 
 ```bash
 git add .
-git commit -m "feat: 2.2 Inputs & Outputs
-- TaskItem: output<Task>() + toggle handler
-- TaskList: signal.update() + event binding
-- computed() stats with live updates
-- Your cyan hover styling preserved"
-git push -u origin 2.2-inputs-and-outputs
+git commit -m "feat: 2.3 Component Communication Patterns
+- TaskForm: add tasks (output → method)
+- TaskActions: filter + delete (input/output)
+- TaskList: orchestrates ALL patterns
+- computed() filtering + effects"
+git push -u origin 2.3-component-communication
 ```
 
 ## Key Learnings
 
-- ✅ **Signal Inputs**: `input.required<Task>()` - reactive + type-safe
-- ✅ **Outputs**: `output<Task>()` - clean child-to-parent
-- ✅ **Unidirectional Data Flow**: Parent owns state
-- ✅ **signal.update()**: Immutable updates trigger reactivity
-- ✅ **computed()**: Auto-updating derived state
+- ✅ **Multiple Patterns**: Inputs/Outputs/Signals/Forms
+- ✅ **Parent Orchestrates**: Single source of truth
+- ✅ **Reactive Filtering**: `computed()` chains
+- ✅ **Rich Interactions**: Add/Filter/Delete/Toggle
 
-**Next Tutorial**: `2.3 Component Communication Patterns` from branch `2.2-inputs-and-outputs`
+**Next**: `2.4 Lifecycle Hooks` from `2.3-component-communication` 🚀
 
-Save as `docs/2.2-inputs-and-outputs.md` 🚀
+Save as `docs/2.3-component-communication.md`
