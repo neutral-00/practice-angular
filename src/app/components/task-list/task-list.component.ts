@@ -2,20 +2,22 @@ import { CommonModule } from '@angular/common';
 import { Component, computed, signal } from '@angular/core';
 import { TaskItem } from '../task-item/task-item.component';
 import { Task } from '../../models/Task';
+import { TaskFormComponent } from '../task-form/task-form.component';
+import { TaskActionsComponent } from '../task-actions/task-actions.component';
 
 @Component({
   selector: 'app-task-list',
-  imports: [CommonModule, TaskItem],
+  imports: [CommonModule, TaskItem, TaskFormComponent, TaskActionsComponent],
   template: `
     <div class="max-w-2xl mx-auto p-6 bg-linear-to-br from-blue-50 to-indigo-100 min-h-screen">
-      <!-- Stats Cards -->
-      <div class="grid grid-cols-2 gap-4 mb-8 text-center">
-        <div class="p-4 bg-white/70 backdrop-blur rounded-xl shadow-lg">
-          <div class="text-3xl font-bold text-blue-600">{{ totalTasks() }}</div>
-          <div class="text-sm text-gray-600">Total</div>
+      <!-- Stats -->
+      <div class="grid grid-cols-2 gap-4 mb-6">
+        <div class="p-4 bg-white/70 backdrop-blur rounded-xl shadow-lg text-center">
+          <div class="text-3xl font-bold text-blue-600">{{ filteredTasks().length }}</div>
+          <div class="text-sm text-gray-600">{{ getFilterLabel() }}</div>
         </div>
-        <div class="p-4 bg-white/70 backdrop-blur rounded-xl shadow-lg">
-          <div class="text-3xl font-bold text-green-600">{{ completedTasks() }}</div>
+        <div class="p-4 bg-white/70 backdrop-blur rounded-xl shadow-lg text-center">
+          <div class="text-3xl font-bold text-green-600">{{ completedCount() }}</div>
           <div class="text-sm text-gray-600">Completed</div>
         </div>
       </div>
@@ -23,18 +25,30 @@ import { Task } from '../../models/Task';
       <!-- Header -->
       <div class="text-center mb-8">
         <h1
-          class="text-4xl font-bold bg-linear-to-r from-blue-600 to-purple-600 
-                    bg-clip-text text-transparent mb-2"
+          class="text-4xl font-bold bg-linear-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2"
         >
           Task Dashboard
         </h1>
-        <p class="text-gray-600">Angular 21 • Inputs & Outputs</p>
+        <p class="text-gray-600">Angular 21 • Communication Patterns</p>
       </div>
 
-      <!-- Interactive Tasks -->
+      <!-- 🎯 ALL PATTERNS BELOW -->
+
+      <!-- 1. TaskForm → TaskList (output → method) -->
+      <app-task-form (taskAdded)="addTask($event)"></app-task-form>
+
+      <!-- 2. TaskList → TaskActions (input) + TaskActions → TaskList (output) -->
+      <app-task-actions
+        [tasks]="tasks()"
+        (filterChanged)="setFilter($event)"
+        (deleteCompleted)="deleteCompletedTasks()"
+      >
+      </app-task-actions>
+
+      <!-- 3. TaskList → TaskItem (input) + TaskItem → TaskList (output) -->
       <div class="space-y-3">
         <app-task-item
-          *ngFor="let task of tasks()"
+          *ngFor="let task of filteredTasks()"
           [task]="task"
           (taskToggled)="updateTask($event)"
         >
@@ -42,14 +56,14 @@ import { Task } from '../../models/Task';
       </div>
 
       <!-- Empty State -->
-      <div *ngIf="tasks().length === 0" class="text-center py-12 text-gray-500">
+      <div *ngIf="filteredTasks().length === 0" class="text-center py-12 text-gray-500">
         <div
           class="w-24 h-24 mx-auto mb-4 bg-gray-100 rounded-2xl flex items-center justify-center"
         >
           📝
         </div>
-        <h3 class="text-xl font-semibold mb-2">No tasks yet</h3>
-        <p>Add your first task to get started!</p>
+        <h3 class="text-xl font-semibold mb-2">{{ getEmptyMessage() }}</h3>
+        <p>{{ getEmptySubMessage() }}</p>
       </div>
     </div>
   `,
@@ -69,14 +83,57 @@ export class TaskList {
     { id: 4, title: '🧪 Write component tests', completed: false },
   ]);
 
-  // ✅ Computed signals (reactive derived state)
-  totalTasks = computed(() => this.tasks().length);
-  completedTasks = computed(() => this.tasks().filter((task) => task.completed).length);
+  filterMode = signal<'all' | 'active' | 'completed'>('all');
+
+  // Derived state
+  completedCount = computed(() => this.tasks().filter((t) => t.completed).length);
+  filteredTasks = computed(() => {
+    const tasks = this.tasks();
+    switch (this.filterMode()) {
+      case 'active':
+        return tasks.filter((t) => !t.completed);
+      case 'completed':
+        return tasks.filter((t) => t.completed);
+      default:
+        return tasks;
+    }
+  });
+
+  // 🎯 Communication Handlers
+  addTask(newTask: Task) {
+    this.tasks.update((tasks) => [...tasks, newTask]);
+  }
 
   // ✅ Handle child → parent events
   updateTask(updatedTask: Task) {
-    this.tasks.update((tasks) =>
-      tasks.map((task) => (task.id === updatedTask.id ? updatedTask : task)),
+    this.tasks.update((tasks) => tasks.map((t) => (t.id === updatedTask.id ? updatedTask : t)));
+  }
+
+  setFilter(mode: string) {
+    this.filterMode.set(mode as any);
+  }
+
+  deleteCompletedTasks() {
+    this.tasks.set(this.tasks().filter((t) => !t.completed));
+  }
+
+  getFilterLabel() {
+    return (
+      {
+        all: 'All Tasks',
+        active: 'Active Tasks',
+        completed: 'Completed Tasks',
+      }[this.filterMode()] || 'All Tasks'
     );
+  }
+
+  getEmptyMessage() {
+    return this.filterMode() === 'active' ? 'No active tasks 🎉' : 'No tasks yet';
+  }
+
+  getEmptySubMessage() {
+    return this.filterMode() === 'active'
+      ? 'Great job completing everything!'
+      : 'Add your first task above!';
   }
 }
