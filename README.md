@@ -1,58 +1,55 @@
-# 2.1 Standalone Components
+# 2.2 Inputs & Outputs
 
-**Angular 21 embraces standalone components as the default architecture.** No more NgModules clutter—components directly import what they need. This reduces boilerplate, improves tree-shaking, and makes lazy-loading trivial.
+Standalone components communicate via **Inputs** (parent → child) and **Outputs** (child → parent). Angular 21 enhances this with **signal inputs** for reactivity.
 
-## Why Standalone Components Matter
+## Project Metadata
 
-```
-Traditional (Module-based)          | Standalone (Angular 21 default)
------------------------------------|----------------------------------
-- NgModule boilerplate              | ✅ Zero module boilerplate
-- Import/export complexity          | ✅ Direct imports
-- Tree-shaking limitations          | ✅ Better tree-shaking
-- Lazy loading complexity           | ✅ Trivial route-level lazy loading
-- Mental overhead (module vs comp)  | ✅ Single mental model
-```
+- Repository: [https://github.com/neutral-00/practice-angular](https://github.com/neutral-00/practice-angular)
+- **Parent Branch:** `2.1-standalone-components`
+- **Branch:** `2.2-inputs-and-outputs`
 
-## Real-World Setup: Task Dashboard
-
-We'll build a task management dashboard starting with a standalone task list.
-
-### Step 1: Create Standalone Components
-
-From your `main` branch:
+## 📁 Branch Setup
 
 ```bash
-git checkout main
-git checkout -b 2.1-standalone-components
-ng g c components/task-list --standalone --inline-template --inline-style --skip-tests --type=component
-ng g c components/task-item --standalone --inline-template --inline-style --skip-tests --type=component
+git checkout 2.1-standalone-components
+git checkout -b 2.2-inputs-and-outputs
 ```
 
-### Step 2: TaskItem Component (Presentational)
+## Keep or Reuse
+
+- ✅ `src/app/models/task.model.ts` (Task interface)
+- ✅ `components/task-item/` (your updated hover template)
+- ✅ `components/task-list/` (signal state + stats)
+- ✅ `app.component.ts` (root setup)
+
+## Step 1: Update TaskItem - Add Toggle Output
 
 **`components/task-item/task-item.component.ts`**
 
 ```typescript
-import { Component, input } from '@angular/core';
 import { CommonModule } from '@angular/common';
-
-export interface Task {
-  id: number;
-  title: string;
-  completed: boolean;
-}
+import { Component, input, output } from '@angular/core';
+import { Task } from '../../models/Task';
 
 @Component({
   selector: 'app-task-item',
-  standalone: true,
   imports: [CommonModule],
   template: `
     <div
       class="flex items-center p-4 mb-1 border rounded-lg bg-white shadow-sm hover:shadow-md hover:bg-cyan-50 transition-all"
     >
-      <input type="checkbox" [checked]="task().completed" class="w-5 h-5 rounded mr-4" disabled />
-      <span class="flex-1 text-gray-900 font-medium line-clamp-1">
+      <input
+        type="checkbox"
+        [checked]="task().completed"
+        (click)="toggleTask()"
+        class="w-5 h-5 rounded mr-4 cursor-pointer"
+      />
+      <span
+        #titleRef
+        class="flex-1 text-gray-900 font-medium line-clamp-1 cursor-pointer"
+        (click)="toggleTask()"
+        [attr.title]="task().title.length > 40 ? task().title : null"
+      >
         {{ task().title }}
       </span>
       <span
@@ -63,50 +60,75 @@ export interface Task {
       </span>
     </div>
   `,
-  styles: [
-    `
-      .line-clamp-1 {
-        display: -webkit-box;
-        -webkit-line-clamp: 1;
-        -webkit-box-orient: vertical;
-        overflow: hidden;
-      }
-    `,
-  ],
+  styles: `
+    .line-clamp-1 {
+      display: -webkit-box;
+      -webkit-line-clamp: 1;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+  `,
 })
-export class TaskItemComponent {
+export class TaskItem {
   task = input.required<Task>();
+
+  // ✅ Output: Child → Parent communication
+  taskToggled = output<Task>();
+
+  toggleTask() {
+    const toggledTask = { ...this.task(), completed: !this.task().completed };
+    this.taskToggled.emit(toggledTask);
+  }
 }
 ```
 
-### Step 3: TaskList Component (Smart Container)
+## Step 2: Update TaskList - Handle Child Events
 
 **`components/task-list/task-list.component.ts`**
 
 ```typescript
+import { Component, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Component, signal } from '@angular/core';
-import { TaskItem } from '../task-item/task-item.component';
-import { Task } from '../../models/Task';
+import { TaskItemComponent } from '../task-item/task-item.component';
+import type { Task } from '../../models/task.model';
 
 @Component({
   selector: 'app-task-list',
-  imports: [CommonModule, TaskItem],
+  standalone: true,
+  imports: [CommonModule, TaskItemComponent],
   template: `
     <div class="max-w-2xl mx-auto p-6 bg-linear-to-br from-blue-50 to-indigo-100 min-h-screen">
+      <!-- Stats Cards -->
+      <div class="grid grid-cols-2 gap-4 mb-8 text-center">
+        <div class="p-4 bg-white/70 backdrop-blur rounded-xl shadow-lg">
+          <div class="text-3xl font-bold text-blue-600">{{ totalTasks() }}</div>
+          <div class="text-sm text-gray-600">Total</div>
+        </div>
+        <div class="p-4 bg-white/70 backdrop-blur rounded-xl shadow-lg">
+          <div class="text-3xl font-bold text-green-600">{{ completedTasks() }}</div>
+          <div class="text-sm text-gray-600">Completed</div>
+        </div>
+      </div>
+
       <!-- Header -->
       <div class="text-center mb-8">
         <h1
-          class="text-4xl font-bold bg-linear-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2"
+          class="text-4xl font-bold bg-linear-to-r from-blue-600 to-purple-600 
+                    bg-clip-text text-transparent mb-2"
         >
           Task Dashboard
         </h1>
-        <p class="text-gray-600">Modern Angular 21 • Standalone Components</p>
+        <p class="text-gray-600">Angular 21 • Inputs & Outputs</p>
       </div>
 
-      <!-- Tasks -->
+      <!-- Interactive Tasks -->
       <div class="space-y-3">
-        <app-task-item *ngFor="let task of tasks()" [task]="task"></app-task-item>
+        <app-task-item
+          *ngFor="let task of tasks()"
+          [task]="task"
+          (taskToggled)="updateTask($event)"
+        >
+        </app-task-item>
       </div>
 
       <!-- Empty State -->
@@ -121,86 +143,69 @@ import { Task } from '../../models/Task';
       </div>
     </div>
   `,
-  styles: ``,
 })
-export class TaskList {
-  // Signal-based state (Angular 21 style)
+export class TaskListComponent {
   tasks = signal<Task[]>([
     { id: 1, title: '✅ Review Angular 21 signals', completed: true },
     { id: 2, title: '🚀 Implement standalone components', completed: false },
     { id: 3, title: '📱 Build responsive task UI', completed: false },
     { id: 4, title: '🧪 Write component tests', completed: false },
   ]);
+
+  // ✅ Computed signals (reactive derived state)
+  totalTasks = computed(() => this.tasks().length);
+  completedTasks = computed(() => this.tasks().filter((task) => task.completed).length);
+
+  // ✅ Handle child → parent events
+  updateTask(updatedTask: Task) {
+    this.tasks.update((tasks) =>
+      tasks.map((task) => (task.id === updatedTask.id ? updatedTask : task)),
+    );
+  }
 }
 ```
 
-### Step 4: Update App Component
+## Communication Flow
 
-**`app.component.ts`**
-
-```typescript
-import { Component } from '@angular/core';
-import { TaskListComponent } from './components/task-list/task-list.component';
-import { RouterOutlet } from '@angular/router';
-import { CommonModule } from '@angular/common';
-
-@Component({
-  selector: 'app-root',
-  standalone: true,
-  imports: [CommonModule, TaskListComponent, RouterOutlet],
-  template: `
-    <main class="min-h-screen bg-linear-to-br from-slate-50 to-slate-200">
-      <app-task-list />
-    </main>
-  `,
-})
-export class AppComponent {
-  title = 'practice-angular';
-}
+```
+Parent (TaskList) ──[task]───→ Child (TaskItem)
+     ↑                                   ↓
+  (taskToggled) ←←←←←←←←←←←←←←←←←←←←←←←←
 ```
 
-### Step 5: Remove App Module (Angular 21 Style)
+## Test Interactive Features
 
-Delete `app.config.ts` if it exists, or ensure your `main.ts` uses bootstrapApplication:
-
-**`main.ts`**
-
-```typescript
-import { bootstrapApplication } from '@angular/platform-browser';
-import { AppComponent } from './app/app.component';
-import { provideRouter } from '@angular/router';
-import { provideAnimations } from '@angular/platform-browser/animations';
-import { importProvidersFrom } from '@angular/core';
-import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
-
-bootstrapApplication(AppComponent, {
-  providers: [provideRouter([]), provideAnimations(), importProvidersFrom(BrowserAnimationsModule)],
-}).catch((err) => console.error(err));
+```bash
+ng serve
 ```
 
-## Key Takeaways
+**Expected Results:**
 
-✅ **Direct imports**: `TaskListComponent` imports `TaskItemComponent` directly
-✅ **No NgModule**: Zero module boilerplate
-✅ **Signals for state**: Modern reactive state management
-✅ **Tailwind + Angular**: Perfect harmony
-✅ **Tree-shakable**: Unused code gets eliminated
+- ✅ Click checkboxes → tasks toggle instantly
+- ✅ Stats cards update automatically
+- ✅ Hover cyan effect on your TaskItem
+- ✅ Signal reactivity throughout
 
 ## Commit & Push
 
 ```bash
 git add .
-git commit -m "2.1: Standalone components with Task Dashboard
-- TaskItem (presentational)
-- TaskList (container)
-- Signal-based state
-- Tailwind styling
-- No NgModules 🎉"
-git push -u origin 2.1-standalone-components
+git commit -m "feat: 2.2 Inputs & Outputs
+- TaskItem: output<Task>() + toggle handler
+- TaskList: signal.update() + event binding
+- computed() stats with live updates
+- Your cyan hover styling preserved"
+git push -u origin 2.2-inputs-and-outputs
 ```
 
-**Live Demo**: `http://localhost:4200` shows your first standalone Task Dashboard!
+## Key Learnings
 
----
+- ✅ **Signal Inputs**: `input.required<Task>()` - reactive + type-safe
+- ✅ **Outputs**: `output<Task>()` - clean child-to-parent
+- ✅ **Unidirectional Data Flow**: Parent owns state
+- ✅ **signal.update()**: Immutable updates trigger reactivity
+- ✅ **computed()**: Auto-updating derived state
 
-**Next up**: 2.2 Inputs & Outputs—adding task editing, deletion, and parent-child communication.
+**Next Tutorial**: `2.3 Component Communication Patterns` from branch `2.2-inputs-and-outputs`
+
+Save as `docs/2.2-inputs-and-outputs.md` 🚀
