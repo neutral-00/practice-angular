@@ -1,6 +1,17 @@
 import { CommonModule } from '@angular/common';
-import { Component, input, output } from '@angular/core';
+import {
+  AfterViewInit,
+  Component,
+  effect,
+  inject,
+  input,
+  OnDestroy,
+  OnInit,
+  output,
+} from '@angular/core';
 import { Task } from '../../models/Task';
+import { LifecycleTrackerService } from '../../services/lifecycle-tracker.service';
+import { LIFECYCLE_EVENT_ICON } from '../../models/LifecycleEvent';
 
 @Component({
   selector: 'app-task-item',
@@ -40,11 +51,41 @@ import { Task } from '../../models/Task';
     }
   `,
 })
-export class TaskItem {
+export class TaskItem implements OnInit, OnDestroy, AfterViewInit {
   task = input.required<Task>();
 
   // ✅ Output: Child → Parent communication
   taskToggled = output<Task>();
+
+  // ✅ Service injection
+  private tracker = inject(LifecycleTrackerService);
+
+  constructor() {
+    // ✅ effect() tracks input changes globally
+    effect(() => {
+      this.tracker.trackEffect(this.task().id);
+      console.log(`${LIFECYCLE_EVENT_ICON.effect} TaskItem ${this.task().id}: effect() tracked`);
+    });
+  }
+
+  ngOnInit() {
+    this.tracker.trackInit(this.task().id);
+    console.log(`${LIFECYCLE_EVENT_ICON.init} TaskItem ${this.task().id}: ngOnInit() tracked`);
+  }
+
+  ngAfterViewInit() {
+    this.tracker.trackAfterviewInit(this.task().id);
+    console.log(
+      `${LIFECYCLE_EVENT_ICON.afterViewInit} TaskItem ${this.task().id}: ngAfterViewInit() tracked`,
+    );
+  }
+
+  ngOnDestroy() {
+    this.tracker.trackDestroy(this.task().id);
+    console.log(
+      `${LIFECYCLE_EVENT_ICON.destroy} TaskItem ${this.task().id}: ngOnDestroy() tracked`,
+    );
+  }
 
   toggleTask() {
     const toggledTask = { ...this.task(), completed: !this.task().completed };
