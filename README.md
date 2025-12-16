@@ -1,310 +1,139 @@
-# 2.4 Lifecycle Hooks (Service-Based Tracking)
+# 2.5 View Queries (Classic + Signals)
 
-**Perfect approach!** Use a **service** to track lifecycle hooks **only from TaskItemComponents**. No parent-child needed—service acts as a global event bus.
+**Query child DOM elements and components** with `viewChild()`/`viewChildren()` (Angular 21 signals).
 
 ## Project Metadata
 
 - Repository: [https://github.com/neutral-00/practice-angular](https://github.com/neutral-00/practice-angular)
-- **Parent Branch:** `2.3-component-communication`
-- **Branch:** `2.4-lifecycle-hooks`
+- **Parent Branch:** `2.4-lifecycle-hooks`
+- **Branch:** `2.5-view-queries`
 
 ## 📁 Branch Setup
 
 ```bash
-git checkout 2.3-component-communication
-git checkout -b 2.4-lifecycle-hooks
+git checkout 2.4-lifecycle-hooks
+git checkout -b 2.5-view-queries
 ```
 
-## Step 1: Lifecycle Tracking Service
+## Keep or Reuse
 
-```bash
-ng g s services/lifecycle-tracker --skip-tests --type=service
-```
+- ✅ All existing components + services
+- ✅ `src/app/models/Task.ts` & `LifecycleEvent.ts`
+- ✅ Lifecycle tracking (your enhanced version)
 
-**`services/lifecycle-tracker.service.ts`**:
+## Step 1: Display the First and Last Task Title - Using ViewChild and ViewChildren
 
-```typescript
-import { computed, Injectable, signal } from '@angular/core';
-import { LifecycleEvent } from '../models/LifecycleEvent';
+- We will make the code changes in `task-list.component.ts`
+- first query first task using `viewChild`
+- then query the last task using `viewChildren` and then filter out the last task
+- The and then display their titles
 
-@Injectable({
-  providedIn: 'root',
-})
-export class LifecycleTrackerService {
-  // Global counters
-  totalInits = signal(0);
-  totalDestroys = signal(0);
-  totalEffects = signal(0);
-  totalAfterviewInits = signal(0);
-
-  // Recent events (last 12)
-  recentEvents = signal<LifecycleEvent[]>([]);
-
-  // Computed stats
-  stats = computed(() => ({
-    totalInits: this.totalInits(),
-    totalDestroys: this.totalDestroys(),
-    totalEffects: this.totalEffects(),
-    totalAfterviewInits: this.totalAfterviewInits(),
-    totalEvents: this.recentEvents().length,
-  }));
-
-  trackInit(taskId: number) {
-    this.totalInits.update((count) => count + 1);
-    this.addEvent(taskId, 'init');
-  }
-
-  trackDestroy(taskId: number) {
-    this.totalDestroys.update((count) => count + 1);
-    this.addEvent(taskId, 'destroy');
-  }
-
-  trackEffect(taskId: number) {
-    this.totalEffects.update((count) => count + 1);
-    this.addEvent(taskId, 'effect');
-  }
-
-  trackAfterviewInit(taskId: number) {
-    this.totalAfterviewInits.update((count) => count + 1);
-    this.addEvent(taskId, 'afterViewInit');
-  }
-
-  private addEvent(taskId: number, type: LifecycleEvent['type']) {
-    const event: LifecycleEvent = { taskId, type, timestamp: new Date() };
-    this.recentEvents.update((events) => {
-      const newEvents = [event, ...events].slice(0, 12);
-      return newEvents;
-    });
-  }
-}
-```
-
-## Step 2: TaskItem with Service Integration
-
-**`components/task-item/task-item.component.ts`** (service tracking only):
+**`components/task-list/task-list.component.ts`** (signal queries):
 
 ```typescript
 import { CommonModule } from '@angular/common';
-import {
-  AfterViewInit,
-  Component,
-  effect,
-  inject,
-  input,
-  OnDestroy,
-  OnInit,
-  output,
-} from '@angular/core';
+import { Component, computed, signal, viewChild, viewChildren } from '@angular/core';
 import { Task } from '../../models/Task';
-import { LifecycleTrackerService } from '../../services/lifecycle-tracker.service';
-import { LIFECYCLE_EVENT_ICON } from '../../models/LifecycleEvent';
+import { TaskActionsComponent } from '../task-actions/task-actions.component';
+import { TaskFormComponent } from '../task-form/task-form.component';
+import { TaskItem } from '../task-item/task-item.component';
+import { TaskStatsComponent } from '../task-stats/task-stats.component';
 
 @Component({
-  selector: 'app-task-item',
-  imports: [CommonModule],
+  selector: 'app-task-list',
+  imports: [CommonModule, TaskItem, TaskFormComponent, TaskActionsComponent, TaskStatsComponent],
   template: `
-    <div
-      class="flex items-center p-4 mb-1 border rounded-lg bg-white shadow-sm hover:shadow-md hover:bg-cyan-50 transition-all"
-    >
-      <input
-        type="checkbox"
-        [checked]="task().completed"
-        (click)="toggleTask()"
-        class="w-5 h-5 rounded mr-4 cursor-pointer"
-      />
-      <span
-        #titleRef
-        class="flex-1 text-gray-900 font-medium line-clamp-1 cursor-pointer"
-        (click)="toggleTask()"
-        [attr.title]="task().title.length > 40 ? task().title : null"
-      >
-        {{ task().title }}
-      </span>
-      <span
-        class="px-3 py-1 text-xs font-semibold rounded-full
-        {{ task().completed ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800' }}"
-      >
-        {{ task().completed ? 'Done' : 'Pending' }}
-      </span>
-    </div>
-  `,
-  styles: `
-    .line-clamp-1 {
-      display: -webkit-box;
-      -webkit-line-clamp: 1;
-      -webkit-box-orient: vertical;
-      overflow: hidden;
-    }
-  `,
-})
-export class TaskItem implements OnInit, OnDestroy, AfterViewInit {
-  task = input.required<Task>();
+    <div class="max-w-2xl mx-auto p-6 bg-linear-to-br from-blue-50 to-indigo-100 min-h-screen">
+      <!-- Lifecycle Tracker -->
+      <app-task-stats></app-task-stats>
 
-  // ✅ Output: Child → Parent communication
-  taskToggled = output<Task>();
-
-  // ✅ Service injection
-  private tracker = inject(LifecycleTrackerService);
-
-  constructor() {
-    // ✅ effect() tracks input changes globally
-    effect(() => {
-      this.tracker.trackEffect(this.task().id);
-      console.log(`${LIFECYCLE_EVENT_ICON.effect} TaskItem ${this.task().id}: effect() tracked`);
-    });
-  }
-
-  ngOnInit() {
-    this.tracker.trackInit(this.task().id);
-    console.log(`${LIFECYCLE_EVENT_ICON.init} TaskItem ${this.task().id}: ngOnInit() tracked`);
-  }
-
-  ngAfterViewInit() {
-    this.tracker.trackAfterviewInit(this.task().id);
-    console.log(
-      `${LIFECYCLE_EVENT_ICON.afterViewInit} TaskItem ${this.task().id}: ngAfterViewInit() tracked`,
-    );
-  }
-
-  ngOnDestroy() {
-    this.tracker.trackDestroy(this.task().id);
-    console.log(
-      `${LIFECYCLE_EVENT_ICON.destroy} TaskItem ${this.task().id}: ngOnDestroy() tracked`,
-    );
-  }
-
-  toggleTask() {
-    const toggledTask = { ...this.task(), completed: !this.task().completed };
-    this.taskToggled.emit(toggledTask);
-  }
-}
-```
-
-## Step 3: TaskStats Displays Service Data
-
-```bash
-ng g c components/task-stats --standalone --inline-template --inline-style --skip-tests --type=component
-```
-
-**`components/task-stats/task-stats.component.ts`**:
-
-```typescript
-import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
-import { LIFECYCLE_EVENT_ICON } from '../../models/LifecycleEvent';
-import { LifecycleTrackerService } from '../../services/lifecycle-tracker.service';
-
-@Component({
-  selector: 'app-task-stats',
-  standalone: true,
-  imports: [CommonModule],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
-    <div
-      class="p-6 bg-linear-to-r from-purple-500 to-pink-500 text-white rounded-2xl shadow-2xl mb-8"
-    >
-      <h3 class="text-xl font-bold mb-4 flex items-center gap-2">📊 TaskItem Lifecycle Tracker</h3>
-
-      <!-- Global Counters -->
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <div class="p-4 bg-white/10 backdrop-blur rounded-xl text-center">
-          <div class="text-2xl font-bold text-emerald-200">{{ stats().totalInits }}</div>
-          <div class="text-xs opacity-90">ngOnInit Calls</div>
+      <!-- 🎯 View Query Output -->
+      <div class="grid grid-cols-2 gap-4 mb-6">
+        <div class="p-4 bg-white/70 backdrop-blur rounded-xl shadow-lg text-center">
+          <div class="text-2xl font-bold text-blue-600">{{ firstTaskTitle() }}</div>
+          <div class="text-xs text-gray-600">First Task (ViewChild)</div>
         </div>
-        <div class="p-4 bg-white/10 backdrop-blur rounded-xl text-center">
-          <div class="text-2xl font-bold text-red-800">{{ stats().totalDestroys }}</div>
-          <div class="text-xs opacity-90">ngOnDestroy Calls</div>
-        </div>
-        <div class="p-4 bg-white/10 backdrop-blur rounded-xl text-center">
-          <div class="text-2xl font-bold text-blue-300">{{ stats().totalEffects }}</div>
-          <div class="text-xs opacity-90">effect() Triggers</div>
-        </div>
-        <div class="p-4 bg-white/10 backdrop-blur rounded-xl text-center">
-          <div class="text-2xl font-bold text-yellow-200">{{ stats().totalAfterviewInits }}</div>
-          <div class="text-xs opacity-90">ngAfterViewInit Calls</div>
+        <div class="p-4 bg-white/70 backdrop-blur rounded-xl shadow-lg text-center">
+          <div class="text-2xl font-bold text-purple-600">{{ lastTaskTitle() }}</div>
+          <div class="text-xs text-gray-600">Last Task (ViewChildren)</div>
         </div>
       </div>
 
-      <!-- Recent Events -->
-      <div class="mt-6 p-4 bg-white/10 backdrop-blur rounded-xl">
-        <div class="font-semibold mb-2 flex items-center gap-2">
-          Recent Events ({{ stats().totalEvents }})
-        </div>
-        <div class="space-y-1 max-h-32 overflow-y-auto">
-          <div
-            *ngFor="let event of recentEvents()"
-            class="text-xs flex justify-between items-center p-1 rounded"
-            [ngClass]="{
-              'bg-green-200/10': event.type === 'init',
-              'bg-red-200/10': event.type === 'destroy',
-              'bg-blue-200/10': event.type === 'effect',
-              'bg-yellow-200/10': event.type === 'afterViewInit',
-            }"
-          >
-            <span>Task {{ event.taskId }}</span>
-            <span class="font-mono text-[10px] opacity-75">
-              {{ event.type.toUpperCase() }} {{ LIFECYCLE_EVENT_ICON[event.type] }}
-            </span>
-          </div>
-        </div>
+      <!-- Rest unchanged... -->
+      <div class="grid grid-cols-2 gap-4 mb-6">
+        <!-- existing stats -->
       </div>
+
+      <!-- Header -->
+      <div class="text-center mb-8">
+        <h1
+          class="text-4xl font-bold bg-linear-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2"
+        >
+          Task Dashboard
+        </h1>
+        <p class="text-gray-600">Angular 21 • View Queries</p>
+      </div>
+
+      <!-- Rest unchanged... -->
     </div>
   `,
 })
-export class TaskStatsComponent {
-  tracker = inject(LifecycleTrackerService);
+export class TaskListComponent {
+  // 1. SIGNAL View Query (Angular 17+)
+  taskViewChildSignalQuery = viewChild(TaskItem); // Queries FIRST TaskItem
+  // 2. REACTIVE Computed Signal
+  firstTaskTitle = computed(() => {
+    const first = this.taskViewChildSignalQuery(); // Get first TaskItem instance
+    return first?.task()?.title || 'None'; // Extract task.title signal
+  });
 
-  stats = computed(() => this.tracker.stats());
-  recentEvents = computed(() => this.tracker.recentEvents());
-  LIFECYCLE_EVENT_ICON = LIFECYCLE_EVENT_ICON;
+  // 3. 🎯 SIGNAL View Query to extract LAST TaskItem later
+  taskViewChildrenSignalQuery = viewChildren(TaskItem); // Get ALL TaskItems
+  // 4. ✅ Last Task Title (computed signal)
+  lastTaskTitle = computed(() => {
+    const allTasks = this.taskViewChildrenSignalQuery(); // QueryList<TaskItemComponent>
+    const lastTask = allTasks[allTasks.length - 1]; // Get LAST item
+    return lastTask?.task()?.title || 'None'; // Extract title
+  });
+
+  tasks = signal<Task[]>([
+    // existing tasks
+  ]);
+  // ... existing signals + methods ...
 }
 ```
 
-## Step 4: Integrate into TaskList (Minimal)
+## View Queries Comparison
 
-**`components/task-list/task-list.component.ts`** (just add import/display):
+| Type         | Classic              | Signal (Angular 21)        |
+| ------------ | -------------------- | -------------------------- |
+| **Single**   | `@ViewChild(Foo)`    | `foo = viewChild(Foo)`     |
+| **Multiple** | `@ViewChildren(Foo)` | `foos = viewChildren(Foo)` |
+| **Reactive** | Manual `changes`     | ✅ Auto-reactive           |
+| **Timing**   | `{ static: false }`  | Automatic                  |
 
-```typescript
-// Add to imports array:
-TaskStatsComponent
-
-// Add to template (top):
-<app-task-stats></app-task-stats>
-```
-
-## Test the Magic ✨
+## Test View Queries
 
 ```bash
 ng serve
-# Watch console + stats panel
 ```
-
-**Demo Flow:**
-
-1. ✅ Load → 4 `ngOnInit()` → `totalInits: 4`
-2. ✅ Toggle task → `effect()` triggers
-3. ✅ **Delete Completed** → 1 `ngOnDestroy()` → `activeInstances: 3`
-4. ✅ Stats + Recent Events update live!
 
 ## Commit
 
 ```bash
 git add .
-git commit -m "feat: 2.4 Lifecycle Service Tracking
-- LifecycleTrackerService: global counters
-- TaskItem: service emits lifecycle events
-- TaskStats: displays service signals
-- Delete Completed → watch destroys live!"
-git push -u origin 2.4-lifecycle-hooks
+git commit -m "feat: 2.5 View Queries
+- TaskItem: template refs + focus management
+- TaskList: @ViewChild/@ViewChildren + signal queries
+- Live first-task title + item counts
+- trackBy prevents lifecycle spam"
+git push -u origin 2.5-view-queries
 ```
 
 ## Key Learnings
 
-- ✅ **Service Communication**: No parent-child needed
-- ✅ **`inject()`**: Modern DI in standalone components
-- ✅ **Global State**: `providedIn: 'root'` service
-- ✅ **Real Destroy Tracking**: Delete → watch counters drop
+- ✅ **`viewChild()`/`viewChildren()`**: Reactive queries
 
-**Perfect foundation for 2.5 View Queries!** 🚀
+**Next**: `2.6 Smart vs Presentational` 🚀
 
-Save as `docs/2.4-lifecycle-hooks.md`
+Save as `docs/2.5-view-queries.md`
