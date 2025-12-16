@@ -4,13 +4,17 @@ import { TaskItem } from '../task-item/task-item.component';
 import { Task } from '../../models/Task';
 import { TaskFormComponent } from '../task-form/task-form.component';
 import { TaskActionsComponent } from '../task-actions/task-actions.component';
+import { TaskStatsComponent } from '../task-stats/task-stats.component';
 
 @Component({
   selector: 'app-task-list',
-  imports: [CommonModule, TaskItem, TaskFormComponent, TaskActionsComponent],
+  imports: [CommonModule, TaskItem, TaskFormComponent, TaskActionsComponent, TaskStatsComponent],
   template: `
     <div class="max-w-2xl mx-auto p-6 bg-linear-to-br from-blue-50 to-indigo-100 min-h-screen">
-      <!-- Stats -->
+      <!-- 🎯 Lifecycle Demo: Stats -->
+      <app-task-stats></app-task-stats>
+
+      <!-- Stats (existing) -->
       <div class="grid grid-cols-2 gap-4 mb-6">
         <div class="p-4 bg-white/70 backdrop-blur rounded-xl shadow-lg text-center">
           <div class="text-3xl font-bold text-blue-600">{{ filteredTasks().length }}</div>
@@ -29,15 +33,11 @@ import { TaskActionsComponent } from '../task-actions/task-actions.component';
         >
           Task Dashboard
         </h1>
-        <p class="text-gray-600">Angular 21 • Communication Patterns</p>
+        <p class="text-gray-600">Angular 21 • Lifecycle Hooks</p>
       </div>
 
-      <!-- 🎯 ALL PATTERNS BELOW -->
-
-      <!-- 1. TaskForm → TaskList (output → method) -->
+      <!-- Existing components (unchanged) -->
       <app-task-form (taskAdded)="addTask($event)"></app-task-form>
-
-      <!-- 2. TaskList → TaskActions (input) + TaskActions → TaskList (output) -->
       <app-task-actions
         [tasks]="tasks()"
         (filterChanged)="setFilter($event)"
@@ -45,17 +45,15 @@ import { TaskActionsComponent } from '../task-actions/task-actions.component';
       >
       </app-task-actions>
 
-      <!-- 3. TaskList → TaskItem (input) + TaskItem → TaskList (output) -->
       <div class="space-y-3">
         <app-task-item
-          *ngFor="let task of filteredTasks()"
+          *ngFor="let task of filteredTasks(); trackBy: trackByTaskId"
           [task]="task"
           (taskToggled)="updateTask($event)"
         >
         </app-task-item>
       </div>
 
-      <!-- Empty State -->
       <div *ngIf="filteredTasks().length === 0" class="text-center py-12 text-gray-500">
         <div
           class="w-24 h-24 mx-auto mb-4 bg-gray-100 rounded-2xl flex items-center justify-center"
@@ -76,7 +74,7 @@ export class TaskList {
     {
       id: 2,
       title:
-        '🚀 Implement standalone components Some gibberish text to make it much longer Some gibberish text to make it much longer',
+        '🚀 Implement standalone components. Some gibberish text to make it much longer so that tooltip is displayed',
       completed: false,
     },
     { id: 3, title: '📱 Build responsive task UI', completed: false },
@@ -135,5 +133,9 @@ export class TaskList {
     return this.filterMode() === 'active'
       ? 'Great job completing everything!'
       : 'Add your first task above!';
+  }
+
+  trackByTaskId(index: number, task: Task): number {
+    return task.id;
   }
 }
