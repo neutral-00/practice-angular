@@ -1,337 +1,310 @@
-# 2.3 Component Communication Patterns
+# 2.4 Lifecycle Hooks (Service-Based Tracking)
 
-Master multiple ways components talk to each other: **Inputs/Outputs**, **Services**, **ViewChild**, and **Signals**. Real-world apps need all these patterns.
+**Perfect approach!** Use a **service** to track lifecycle hooks **only from TaskItemComponents**. No parent-child needed—service acts as a global event bus.
 
 ## Project Metadata
 
 - Repository: [https://github.com/neutral-00/practice-angular](https://github.com/neutral-00/practice-angular)
-- **Parent Branch:** `2.2-inputs-and-outputs`
-- **Branch:** `2.3-component-communication`
+- **Parent Branch:** `2.3-component-communication`
+- **Branch:** `2.4-lifecycle-hooks`
 
 ## 📁 Branch Setup
 
 ```bash
-git checkout 2.2-inputs-and-outputs
-git checkout -b 2.3-component-communication
+git checkout 2.3-component-communication
+git checkout -b 2.4-lifecycle-hooks
 ```
 
-## Keep or Reuse
-
-- ✅ `src/app/models/Task.ts` (your Task model)
-- ✅ `components/task-item/` (your updated template w/ title click + tooltip)
-- ✅ `components/task-list/` (inputs/outputs + stats)
-- ✅ `app.component.ts`
-
-## Step 1: Add Task Form Component (New)
+## Step 1: Lifecycle Tracking Service
 
 ```bash
-ng g c components/task-form --standalone --inline-template --inline-style --skip-tests
+ng g s services/lifecycle-tracker --skip-tests --type=service
 ```
 
-**`components/task-form/task-form.component.ts`**
+**`services/lifecycle-tracker.service.ts`**:
 
 ```typescript
-import { Component, output, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
-import { Task } from '../../models/Task';
+import { computed, Injectable, signal } from '@angular/core';
+import { LifecycleEvent } from '../models/LifecycleEvent';
 
-@Component({
-  selector: 'app-task-form',
-  standalone: true,
-  imports: [CommonModule, FormsModule],
-  template: `
-    <form (ngSubmit)="addTask()" class="bg-white p-6 rounded-2xl shadow-lg mb-8">
-      <div class="flex gap-4">
-        <input
-          [(ngModel)]="newTaskTitle"
-          name="taskTitle"
-          placeholder="Add new task..."
-          class="flex-1 px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
-        />
-        <button
-          type="submit"
-          [disabled]="!newTaskTitle.trim()"
-          class="px-6 py-3 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all shadow-lg hover:shadow-xl"
-        >
-          Add Task
-        </button>
-      </div>
-    </form>
-  `,
-  styles: [
-    `
-      input:focus {
-        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-      }
-    `,
-  ],
+@Injectable({
+  providedIn: 'root',
 })
-export class TaskFormComponent {
-  newTaskTitle = '';
-  taskAdded = output<Task>();
+export class LifecycleTrackerService {
+  // Global counters
+  totalInits = signal(0);
+  totalDestroys = signal(0);
+  totalEffects = signal(0);
+  totalAfterviewInits = signal(0);
 
-  addTask() {
-    if (!this.newTaskTitle.trim()) return;
+  // Recent events (last 12)
+  recentEvents = signal<LifecycleEvent[]>([]);
 
-    const newTask: Task = {
-      id: Date.now(),
-      title: this.newTaskTitle.trim(),
-      completed: false,
-    };
+  // Computed stats
+  stats = computed(() => ({
+    totalInits: this.totalInits(),
+    totalDestroys: this.totalDestroys(),
+    totalEffects: this.totalEffects(),
+    totalAfterviewInits: this.totalAfterviewInits(),
+    totalEvents: this.recentEvents().length,
+  }));
 
-    this.taskAdded.emit(newTask);
-    this.newTaskTitle = '';
+  trackInit(taskId: number) {
+    this.totalInits.update((count) => count + 1);
+    this.addEvent(taskId, 'init');
+  }
+
+  trackDestroy(taskId: number) {
+    this.totalDestroys.update((count) => count + 1);
+    this.addEvent(taskId, 'destroy');
+  }
+
+  trackEffect(taskId: number) {
+    this.totalEffects.update((count) => count + 1);
+    this.addEvent(taskId, 'effect');
+  }
+
+  trackAfterviewInit(taskId: number) {
+    this.totalAfterviewInits.update((count) => count + 1);
+    this.addEvent(taskId, 'afterViewInit');
+  }
+
+  private addEvent(taskId: number, type: LifecycleEvent['type']) {
+    const event: LifecycleEvent = { taskId, type, timestamp: new Date() };
+    this.recentEvents.update((events) => {
+      const newEvents = [event, ...events].slice(0, 12);
+      return newEvents;
+    });
   }
 }
 ```
 
-## Step 2: Task Actions Component (Delete + Filter)
+## Step 2: TaskItem with Service Integration
 
-```bash
-ng g c components/task-actions --standalone --inline-template --inline-style --skip-tests
-```
-
-**`components/task-actions/task-actions.component.ts`**
+**`components/task-item/task-item.component.ts`** (service tracking only):
 
 ```typescript
-import { Component, input, output } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
+import {
+  AfterViewInit,
+  Component,
+  effect,
+  inject,
+  input,
+  OnDestroy,
+  OnInit,
+  output,
+} from '@angular/core';
+import { Task } from '../../models/Task';
+import { LifecycleTrackerService } from '../../services/lifecycle-tracker.service';
+import { LIFECYCLE_EVENT_ICON } from '../../models/LifecycleEvent';
 
 @Component({
-  selector: 'app-task-actions',
-  standalone: true,
-  imports: [CommonModule, FormsModule],
+  selector: 'app-task-item',
+  imports: [CommonModule],
   template: `
     <div
-      class="flex gap-4 items-center justify-between mb-6 p-4 bg-white/50 backdrop-blur rounded-xl"
+      class="flex items-center p-4 mb-1 border rounded-lg bg-white shadow-sm hover:shadow-md hover:bg-cyan-50 transition-all"
     >
-      <!-- Filter -->
-      <select
-        [(ngModel)]="filterMode"
-        name="filter"
-        class="px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 bg-white"
-        (change)="filterChanged()"
+      <input
+        type="checkbox"
+        [checked]="task().completed"
+        (click)="toggleTask()"
+        class="w-5 h-5 rounded mr-4 cursor-pointer"
+      />
+      <span
+        #titleRef
+        class="flex-1 text-gray-900 font-medium line-clamp-1 cursor-pointer"
+        (click)="toggleTask()"
+        [attr.title]="task().title.length > 40 ? task().title : null"
       >
-        <option value="all">All Tasks</option>
-        <option value="active">Active</option>
-        <option value="completed">Completed</option>
-      </select>
-
-      <!-- Delete All -->
-      <button
-        (click)="deleteAllCompleted()"
-        [disabled]="totalCompleted() === 0"
-        class="px-6 py-2 bg-red-600 text-white text-sm font-semibold rounded-xl hover:bg-red-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all"
+        {{ task().title }}
+      </span>
+      <span
+        class="px-3 py-1 text-xs font-semibold rounded-full
+        {{ task().completed ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800' }}"
       >
-        Delete Completed ({{ totalCompleted() }})
-      </button>
+        {{ task().completed ? 'Done' : 'Pending' }}
+      </span>
     </div>
   `,
-})
-export class TaskActionsComponent {
-  tasks = input.required<Task[]>();
-  filterMode = 'all';
-
-  filterChanged = output<string>();
-  deleteCompleted = output<void>();
-
-  get totalCompleted() {
-    return this.tasks().filter((t) => t.completed).length;
-  }
-
-  filterChanged() {
-    this.filterChanged.emit(this.filterMode);
-  }
-
-  deleteAllCompleted() {
-    this.deleteCompleted.emit();
-  }
-}
-```
-
-## Step 3: Enhanced TaskList (Orchestrates All Patterns)
-
-**`components/task-list/task-list.component.ts`**
-
-```typescript
-import { Component, signal, computed, effect } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { TaskItemComponent } from '../task-item/task-item.component';
-import { TaskFormComponent } from '../task-form/task-form.component';
-import { TaskActionsComponent } from '../task-actions/task-actions.component';
-import { Task } from '../../models/Task';
-
-@Component({
-  selector: 'app-task-list',
-  standalone: true,
-  imports: [CommonModule, TaskItemComponent, TaskFormComponent, TaskActionsComponent],
-  template: `
-    <div class="max-w-2xl mx-auto p-6 bg-linear-to-br from-blue-50 to-indigo-100 min-h-screen">
-      <!-- Stats -->
-      <div class="grid grid-cols-2 gap-4 mb-6">
-        <div class="p-4 bg-white/70 backdrop-blur rounded-xl shadow-lg text-center">
-          <div class="text-3xl font-bold text-blue-600">{{ filteredTasks().length }}</div>
-          <div class="text-sm text-gray-600">{{ getFilterLabel() }}</div>
-        </div>
-        <div class="p-4 bg-white/70 backdrop-blur rounded-xl shadow-lg text-center">
-          <div class="text-3xl font-bold text-green-600">{{ completedCount() }}</div>
-          <div class="text-sm text-gray-600">Completed</div>
-        </div>
-      </div>
-
-      <!-- Header -->
-      <div class="text-center mb-8">
-        <h1
-          class="text-4xl font-bold bg-linear-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2"
-        >
-          Task Dashboard
-        </h1>
-        <p class="text-gray-600">Angular 21 • Communication Patterns</p>
-      </div>
-
-      <!-- 🎯 ALL PATTERNS BELOW -->
-
-      <!-- 1. TaskForm → TaskList (output → method) -->
-      <app-task-form (taskAdded)="addTask($event)"></app-task-form>
-
-      <!-- 2. TaskList → TaskActions (input) + TaskActions → TaskList (output) -->
-      <app-task-actions
-        [tasks]="tasks()"
-        (filterChanged)="setFilter($event)"
-        (deleteCompleted)="deleteCompletedTasks()"
-      >
-      </app-task-actions>
-
-      <!-- 3. TaskList → TaskItem (input) + TaskItem → TaskList (output) -->
-      <div class="space-y-3">
-        <app-task-item
-          *ngFor="let task of filteredTasks()"
-          [task]="task"
-          (taskToggled)="updateTask($event)"
-        >
-        </app-task-item>
-      </div>
-
-      <!-- Empty State -->
-      <div *ngIf="filteredTasks().length === 0" class="text-center py-12 text-gray-500">
-        <div
-          class="w-24 h-24 mx-auto mb-4 bg-gray-100 rounded-2xl flex items-center justify-center"
-        >
-          📝
-        </div>
-        <h3 class="text-xl font-semibold mb-2">{{ getEmptyMessage() }}</h3>
-        <p>{{ getEmptySubMessage() }}</p>
-      </div>
-    </div>
-  `,
-})
-export class TaskListComponent {
-  tasks = signal<Task[]>([
-    { id: 1, title: '✅ Review Angular 21 signals', completed: true },
-    { id: 2, title: '🚀 Implement standalone components', completed: false },
-    { id: 3, title: '📱 Build responsive task UI', completed: false },
-    { id: 4, title: '🧪 Write component tests', completed: false },
-  ]);
-
-  filterMode = signal<'all' | 'active' | 'completed'>('all');
-
-  // Derived state
-  completedCount = computed(() => this.tasks().filter((t) => t.completed).length);
-  filteredTasks = computed(() => {
-    const tasks = this.tasks();
-    switch (this.filterMode()) {
-      case 'active':
-        return tasks.filter((t) => !t.completed);
-      case 'completed':
-        return tasks.filter((t) => t.completed);
-      default:
-        return tasks;
+  styles: `
+    .line-clamp-1 {
+      display: -webkit-box;
+      -webkit-line-clamp: 1;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
     }
-  });
+  `,
+})
+export class TaskItem implements OnInit, OnDestroy, AfterViewInit {
+  task = input.required<Task>();
 
-  // 🎯 Communication Handlers
-  addTask(newTask: Task) {
-    this.tasks.update((tasks) => [...tasks, newTask]);
+  // ✅ Output: Child → Parent communication
+  taskToggled = output<Task>();
+
+  // ✅ Service injection
+  private tracker = inject(LifecycleTrackerService);
+
+  constructor() {
+    // ✅ effect() tracks input changes globally
+    effect(() => {
+      this.tracker.trackEffect(this.task().id);
+      console.log(`${LIFECYCLE_EVENT_ICON.effect} TaskItem ${this.task().id}: effect() tracked`);
+    });
   }
 
-  updateTask(updatedTask: Task) {
-    this.tasks.update((tasks) => tasks.map((t) => (t.id === updatedTask.id ? updatedTask : t)));
+  ngOnInit() {
+    this.tracker.trackInit(this.task().id);
+    console.log(`${LIFECYCLE_EVENT_ICON.init} TaskItem ${this.task().id}: ngOnInit() tracked`);
   }
 
-  setFilter(mode: string) {
-    this.filterMode.set(mode as any);
-  }
-
-  deleteCompletedTasks() {
-    this.tasks.set(this.tasks().filter((t) => !t.completed));
-  }
-
-  getFilterLabel() {
-    return (
-      {
-        all: 'All Tasks',
-        active: 'Active Tasks',
-        completed: 'Completed Tasks',
-      }[this.filterMode()] || 'All Tasks'
+  ngAfterViewInit() {
+    this.tracker.trackAfterviewInit(this.task().id);
+    console.log(
+      `${LIFECYCLE_EVENT_ICON.afterViewInit} TaskItem ${this.task().id}: ngAfterViewInit() tracked`,
     );
   }
 
-  getEmptyMessage() {
-    return this.filterMode() === 'active' ? 'No active tasks 🎉' : 'No tasks yet';
+  ngOnDestroy() {
+    this.tracker.trackDestroy(this.task().id);
+    console.log(
+      `${LIFECYCLE_EVENT_ICON.destroy} TaskItem ${this.task().id}: ngOnDestroy() tracked`,
+    );
   }
 
-  getEmptySubMessage() {
-    return this.filterMode() === 'active'
-      ? 'Great job completing everything!'
-      : 'Add your first task above!';
+  toggleTask() {
+    const toggledTask = { ...this.task(), completed: !this.task().completed };
+    this.taskToggled.emit(toggledTask);
   }
 }
 ```
 
-## Communication Patterns Summary
+## Step 3: TaskStats Displays Service Data
 
-| Pattern             | Direction    | Example                                       |
-| ------------------- | ------------ | --------------------------------------------- |
-| **Inputs/Outputs**  | Parent↔Child | `[tasks]="tasks()"` `(taskAdded)="addTask()"` |
-| **Signal Inputs**   | Parent→Child | `tasks = input.required<Task[]>()`            |
-| **Two-way binding** | Child↔Parent | `[(ngModel)]="newTaskTitle"`                  |
-| **Event Outputs**   | Child→Parent | `(filterChanged)="setFilter($event)"`         |
+```bash
+ng g c components/task-stats --standalone --inline-template --inline-style --skip-tests --type=component
+```
 
-## Test All Features
+**`components/task-stats/task-stats.component.ts`**:
+
+```typescript
+import { CommonModule } from '@angular/common';
+import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { LIFECYCLE_EVENT_ICON } from '../../models/LifecycleEvent';
+import { LifecycleTrackerService } from '../../services/lifecycle-tracker.service';
+
+@Component({
+  selector: 'app-task-stats',
+  standalone: true,
+  imports: [CommonModule],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  template: `
+    <div
+      class="p-6 bg-linear-to-r from-purple-500 to-pink-500 text-white rounded-2xl shadow-2xl mb-8"
+    >
+      <h3 class="text-xl font-bold mb-4 flex items-center gap-2">📊 TaskItem Lifecycle Tracker</h3>
+
+      <!-- Global Counters -->
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div class="p-4 bg-white/10 backdrop-blur rounded-xl text-center">
+          <div class="text-2xl font-bold text-emerald-200">{{ stats().totalInits }}</div>
+          <div class="text-xs opacity-90">ngOnInit Calls</div>
+        </div>
+        <div class="p-4 bg-white/10 backdrop-blur rounded-xl text-center">
+          <div class="text-2xl font-bold text-red-800">{{ stats().totalDestroys }}</div>
+          <div class="text-xs opacity-90">ngOnDestroy Calls</div>
+        </div>
+        <div class="p-4 bg-white/10 backdrop-blur rounded-xl text-center">
+          <div class="text-2xl font-bold text-blue-300">{{ stats().totalEffects }}</div>
+          <div class="text-xs opacity-90">effect() Triggers</div>
+        </div>
+        <div class="p-4 bg-white/10 backdrop-blur rounded-xl text-center">
+          <div class="text-2xl font-bold text-yellow-200">{{ stats().totalAfterviewInits }}</div>
+          <div class="text-xs opacity-90">ngAfterViewInit Calls</div>
+        </div>
+      </div>
+
+      <!-- Recent Events -->
+      <div class="mt-6 p-4 bg-white/10 backdrop-blur rounded-xl">
+        <div class="font-semibold mb-2 flex items-center gap-2">
+          Recent Events ({{ stats().totalEvents }})
+        </div>
+        <div class="space-y-1 max-h-32 overflow-y-auto">
+          <div
+            *ngFor="let event of recentEvents()"
+            class="text-xs flex justify-between items-center p-1 rounded"
+            [ngClass]="{
+              'bg-green-200/10': event.type === 'init',
+              'bg-red-200/10': event.type === 'destroy',
+              'bg-blue-200/10': event.type === 'effect',
+              'bg-yellow-200/10': event.type === 'afterViewInit',
+            }"
+          >
+            <span>Task {{ event.taskId }}</span>
+            <span class="font-mono text-[10px] opacity-75">
+              {{ event.type.toUpperCase() }} {{ LIFECYCLE_EVENT_ICON[event.type] }}
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  `,
+})
+export class TaskStatsComponent {
+  tracker = inject(LifecycleTrackerService);
+
+  stats = computed(() => this.tracker.stats());
+  recentEvents = computed(() => this.tracker.recentEvents());
+  LIFECYCLE_EVENT_ICON = LIFECYCLE_EVENT_ICON;
+}
+```
+
+## Step 4: Integrate into TaskList (Minimal)
+
+**`components/task-list/task-list.component.ts`** (just add import/display):
+
+```typescript
+// Add to imports array:
+TaskStatsComponent
+
+// Add to template (top):
+<app-task-stats></app-task-stats>
+```
+
+## Test the Magic ✨
 
 ```bash
 ng serve
+# Watch console + stats panel
 ```
 
-**Expected:**
+**Demo Flow:**
 
-- ✅ Add new tasks (form → list)
-- ✅ Toggle tasks (item → list)
-- ✅ Filter tasks (actions → list)
-- ✅ Delete completed (actions → list)
-- ✅ Your title click + tooltip preserved
+1. ✅ Load → 4 `ngOnInit()` → `totalInits: 4`
+2. ✅ Toggle task → `effect()` triggers
+3. ✅ **Delete Completed** → 1 `ngOnDestroy()` → `activeInstances: 3`
+4. ✅ Stats + Recent Events update live!
 
 ## Commit
 
 ```bash
 git add .
-git commit -m "feat: 2.3 Component Communication Patterns
-- TaskForm: add tasks (output → method)
-- TaskActions: filter + delete (input/output)
-- TaskList: orchestrates ALL patterns
-- computed() filtering + effects"
-git push -u origin 2.3-component-communication
+git commit -m "feat: 2.4 Lifecycle Service Tracking
+- LifecycleTrackerService: global counters
+- TaskItem: service emits lifecycle events
+- TaskStats: displays service signals
+- Delete Completed → watch destroys live!"
+git push -u origin 2.4-lifecycle-hooks
 ```
 
 ## Key Learnings
 
-- ✅ **Multiple Patterns**: Inputs/Outputs/Signals/Forms
-- ✅ **Parent Orchestrates**: Single source of truth
-- ✅ **Reactive Filtering**: `computed()` chains
-- ✅ **Rich Interactions**: Add/Filter/Delete/Toggle
+- ✅ **Service Communication**: No parent-child needed
+- ✅ **`inject()`**: Modern DI in standalone components
+- ✅ **Global State**: `providedIn: 'root'` service
+- ✅ **Real Destroy Tracking**: Delete → watch counters drop
 
-**Next**: `2.4 Lifecycle Hooks` from `2.3-component-communication` 🚀
+**Perfect foundation for 2.5 View Queries!** 🚀
 
-Save as `docs/2.3-component-communication.md`
+Save as `docs/2.4-lifecycle-hooks.md`
