@@ -1,9 +1,9 @@
 import { CommonModule } from '@angular/common';
-import { Component, computed, signal } from '@angular/core';
-import { TaskItem } from '../task-item/task-item.component';
+import { Component, computed, signal, viewChild, viewChildren } from '@angular/core';
 import { Task } from '../../models/Task';
-import { TaskFormComponent } from '../task-form/task-form.component';
 import { TaskActionsComponent } from '../task-actions/task-actions.component';
+import { TaskFormComponent } from '../task-form/task-form.component';
+import { TaskItem } from '../task-item/task-item.component';
 import { TaskStatsComponent } from '../task-stats/task-stats.component';
 
 @Component({
@@ -13,6 +13,18 @@ import { TaskStatsComponent } from '../task-stats/task-stats.component';
     <div class="max-w-2xl mx-auto p-6 bg-linear-to-br from-blue-50 to-indigo-100 min-h-screen">
       <!-- 🎯 Lifecycle Demo: Stats -->
       <app-task-stats></app-task-stats>
+
+      <!-- 🎯 View Query Output -->
+      <div class="grid grid-cols-2 gap-4 mb-6">
+        <div class="p-4 bg-white/70 backdrop-blur rounded-xl shadow-lg text-center">
+          <div class="text-2xl font-bold text-blue-600">{{ firstTaskTitle() }}</div>
+          <div class="text-xs text-gray-600">First Task (ViewChild)</div>
+        </div>
+        <div class="p-4 bg-white/70 backdrop-blur rounded-xl shadow-lg text-center">
+          <div class="text-2xl font-bold text-purple-600">{{ lastTaskTitle() }}</div>
+          <div class="text-xs text-gray-600">Last Task (ViewChildren)</div>
+        </div>
+      </div>
 
       <!-- Stats (existing) -->
       <div class="grid grid-cols-2 gap-4 mb-6">
@@ -33,7 +45,7 @@ import { TaskStatsComponent } from '../task-stats/task-stats.component';
         >
           Task Dashboard
         </h1>
-        <p class="text-gray-600">Angular 21 • Lifecycle Hooks</p>
+        <p class="text-gray-600">Angular 21 • View Queries</p>
       </div>
 
       <!-- Existing components (unchanged) -->
@@ -68,6 +80,24 @@ import { TaskStatsComponent } from '../task-stats/task-stats.component';
   styles: ``,
 })
 export class TaskList {
+  // 1. SIGNAL View Query (Angular 17+)
+  taskViewChildSignalQuery = viewChild(TaskItem); // Queries FIRST TaskItem
+  // 2. REACTIVE Computed Signal
+  firstTaskTitle = computed(() => {
+    const first = this.taskViewChildSignalQuery(); // Get first TaskItem instance
+    return first?.task()?.title || 'None'; // Extract task.title signal
+  });
+
+  // 3. 🎯 SIGNAL View Query to extract LAST TaskItem later
+  taskViewChildrenSignalQuery = viewChildren(TaskItem); // Get ALL TaskItems
+
+  // 4. ✅ Last Task Title (computed signal)
+  lastTaskTitle = computed(() => {
+    const allTasks = this.taskViewChildrenSignalQuery(); // QueryList<TaskItemComponent>
+    const lastTask = allTasks[allTasks.length - 1]; // Get LAST item
+    return lastTask?.task()?.title || 'None'; // Extract title
+  });
+
   // Signal-based state (Angular 21 style)
   tasks = signal<Task[]>([
     { id: 1, title: '✅ Review Angular 21 signals', completed: true },
