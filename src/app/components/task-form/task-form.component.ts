@@ -1,4 +1,4 @@
-import { Component, output } from '@angular/core';
+import { Component, ElementRef, output, ViewChild } from '@angular/core';
 import { Task } from '../../models/Task';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
@@ -9,7 +9,9 @@ import { CommonModule } from '@angular/common';
   template: `
     <form (ngSubmit)="addTask()" class="bg-white p-6 rounded-2xl shadow-lg mb-8">
       <div class="flex gap-4">
+        <!-- 🎯 Template ref for parent access -->
         <input
+          #taskInput
           [(ngModel)]="newTaskTitle"
           name="taskTitle"
           placeholder="Add new task..."
@@ -32,6 +34,13 @@ import { CommonModule } from '@angular/common';
   `,
 })
 export class TaskFormComponent {
+  @ViewChild('taskInput') taskInput!: ElementRef<HTMLInputElement>;
+
+  // 🎯 Public method for parent to focus
+  focusInput() {
+    this.taskInput?.nativeElement.focus();
+  }
+
   newTaskTitle = '';
   taskAdded = output<Task>();
 

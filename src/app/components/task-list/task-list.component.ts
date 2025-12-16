@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, computed, signal, viewChild, viewChildren } from '@angular/core';
+import { Component, computed, ElementRef, signal, viewChild, viewChildren } from '@angular/core';
 import { Task } from '../../models/Task';
 import { TaskActionsComponent } from '../task-actions/task-actions.component';
 import { TaskFormComponent } from '../task-form/task-form.component';
@@ -49,7 +49,7 @@ import { TaskStatsComponent } from '../task-stats/task-stats.component';
       </div>
 
       <!-- Existing components (unchanged) -->
-      <app-task-form (taskAdded)="addTask($event)"></app-task-form>
+      <app-task-form #taskFormRef (taskAdded)="addTask($event)"></app-task-form>
       <app-task-actions
         [tasks]="tasks()"
         (filterChanged)="setFilter($event)"
@@ -66,20 +66,47 @@ import { TaskStatsComponent } from '../task-stats/task-stats.component';
         </app-task-item>
       </div>
 
-      <div *ngIf="filteredTasks().length === 0" class="text-center py-12 text-gray-500">
+      <!-- Empty State - CLICKABLE -->
+      <div
+        *ngIf="filteredTasks().length === 0"
+        class="text-center py-12 text-gray-500 cursor-pointer hover:bg-gray-100 p-8 rounded-2xl transition-all group"
+        (click)="onEmptyStateClick()"
+        title="Click to add your first task!"
+      >
         <div
-          class="w-24 h-24 mx-auto mb-4 bg-gray-100 rounded-2xl flex items-center justify-center"
+          class="w-24 h-24 mx-auto mb-4 bg-gray-100 rounded-2xl flex items-center justify-center group-hover:bg-blue-100 transition-all"
         >
           📝
         </div>
-        <h3 class="text-xl font-semibold mb-2">{{ getEmptyMessage() }}</h3>
-        <p>{{ getEmptySubMessage() }}</p>
+        <h3 class="text-xl font-semibold mb-2 hover:text-blue-600 transition-colors">
+          {{ getEmptyMessage() }}
+        </h3>
+        <p class="hover:underline">{{ getEmptySubMessage() }}</p>
+        <!-- Subtle focus hint -->
+        <div class="mt-2 text-xs opacity-0 group-hover:opacity-100 transition-all text-blue-500">
+          👆 Click to add task
+        </div>
       </div>
     </div>
   `,
   styles: ``,
 })
 export class TaskList {
+  // 🎯 Query TaskForm
+  taskFormQuery = viewChild<TaskFormComponent>('taskFormRef');
+
+  // 🎯 Click handler for empty state
+  onEmptyStateClick() {
+    const taskForm = this.taskFormQuery();
+    taskForm?.focusInput();
+
+    // Smooth scroll to form
+    taskForm?.taskInput?.nativeElement.scrollIntoView({
+      behavior: 'smooth',
+      block: 'center',
+    });
+  }
+
   // 1. SIGNAL View Query (Angular 17+)
   taskViewChildSignalQuery = viewChild(TaskItem); // Queries FIRST TaskItem
   // 2. REACTIVE Computed Signal
