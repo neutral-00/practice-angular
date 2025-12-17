@@ -30,7 +30,7 @@ import { TaskItem } from '../task-item/task-item.component';
   styles: ``,
 })
 export class TaskShellComponent {
-  // ✅ SMART: Owns state/logic
+  // ✅ SMART: Owns state
   tasks = signal<Task[]>([
     { id: 1, title: '✅ Review Angular 21 signals', completed: true },
     { id: 2, title: '🚀 Implement standalone components', completed: false },
@@ -39,25 +39,25 @@ export class TaskShellComponent {
   ]);
 
   filterMode = signal<'all' | 'active' | 'completed'>('all');
-  // View query (your magic!)
+
+  // ✅ Receive viewChildren from child (testing concept)
   taskChildrenQueryFromBoard = signal<ReturnType<typeof viewChildren<TaskItem>> | undefined>(
     undefined,
   );
-  taskFormQuery = viewChild<TaskFormComponent>('taskFormRef');
+
+  // Titles from CHILD view query!
   firstTaskTitle = computed(() => {
-    const children = this.taskChildrenQueryFromBoard();
-    return children?.()[0]?.task()?.title || 'None';
+    const children = this.taskChildrenQueryFromBoard()?.();
+    return children?.[0]?.task()?.title || 'None';
   });
   lastTaskTitle = computed(() => {
-    const children = this.taskChildrenQueryFromBoard();
-    const all = children?.();
-    return all && all?.length > 1 ? all[all.length - 1]?.task().title : 'None';
+    const children = this.taskChildrenQueryFromBoard()?.();
+    return children && children.length > 0 ? children[children.length - 1]?.task()?.title : 'None';
   });
 
-  // ✅ Handler receives viewChildren from child
   onViewChildrenReady(childrenQuery: ReturnType<typeof viewChildren<TaskItem>>) {
     this.taskChildrenQueryFromBoard.set(childrenQuery);
-    console.log('TaskShell: Received viewChildren from TaskBoard:', childrenQuery().length);
+    console.log('TaskShell: Received viewChildren:', childrenQuery().length);
   }
 
   // Computed state
@@ -73,6 +73,11 @@ export class TaskShellComponent {
     }
   });
 
+  // ✅ NEW: Mark All Complete
+  markTaskComplete() {
+    this.tasks.set(this.tasks().map((t) => ({ ...t, completed: true })));
+  }
+
   // Smart methods
   addTask(task: Task) {
     this.tasks.update((t) => [...t, task]);
@@ -86,14 +91,7 @@ export class TaskShellComponent {
   deleteCompletedTasks() {
     this.tasks.set(this.tasks().filter((t) => !t.completed));
   }
-  markTaskComplete() {
-    this.tasks.set(
-      this.tasks().map((t) => {
-        if (!t.completed) t.completed = true;
-        return t;
-      }),
-    );
-  }
+
   getEmptyMessage() {
     return this.filterMode() === 'active' ? 'No active tasks 🎉' : 'No tasks yet';
   }
@@ -101,8 +99,7 @@ export class TaskShellComponent {
     return this.filterMode() === 'active' ? 'Great job!' : 'Click to add your first task!';
   }
 
-  // 🎯 Empty state click handler
-  onEmptyStateClick(taskFormRef: Signal<TaskFormComponent | undefined>) {
+  onEmptyStateClick(taskFormRef: ReturnType<typeof viewChild<TaskFormComponent>>) {
     const taskForm = taskFormRef();
     taskForm?.focusInput?.();
     taskForm?.taskInput?.nativeElement.scrollIntoView({ behavior: 'smooth', block: 'center' });

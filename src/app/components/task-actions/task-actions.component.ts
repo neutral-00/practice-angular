@@ -22,7 +22,7 @@ import { Task } from '../../models/Task';
         <option value="completed">Completed</option>
       </select>
 
-      <!-- Complete All -->
+      <!-- ✅ NEW: Mark All Complete -->
       <button
         (click)="markAllCompleted()"
         [disabled]="totalPending === 0"
@@ -49,7 +49,7 @@ export class TaskActionsComponent {
 
   filterChanged = output<string>();
   deleteCompleted = output<void>();
-  markCompleted = output<void>();
+  markCompleted = output<void>(); // ✅ NEW!
 
   get totalPending() {
     return this.tasks().filter((t) => !t.completed).length;

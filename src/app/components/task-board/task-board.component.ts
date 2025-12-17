@@ -5,7 +5,6 @@ import {
   computed,
   input,
   output,
-  Signal,
   viewChild,
   viewChildren,
 } from '@angular/core';
@@ -97,20 +96,20 @@ import { TaskStatsComponent } from '../task-stats/task-stats.component';
   styles: ``,
 })
 export class TaskBoardComponent implements AfterViewInit {
+  // ✅ LOCAL View Queries (self-contained)
   taskFormRef = viewChild<TaskFormComponent>('taskFormRef');
   taskViewChildrenSignalQuery = viewChildren(TaskItem);
 
-  // ✅ NEW: Output to pass query to parent
+  // ✅ Emit viewChildren to parent for testing
   viewChildrenReady = output<ReturnType<typeof viewChildren<TaskItem>>>();
 
   ngAfterViewInit() {
-    // ✅ Emit viewChildren to parent after DOM ready
     const children = this.taskViewChildrenSignalQuery();
     console.log('TaskBoard: viewChildren ready:', children.length);
     this.viewChildrenReady.emit(this.taskViewChildrenSignalQuery);
   }
 
-  // ✅ PRESENTATIONAL: Pure props/events
+  // Presentational props
   tasks = input.required<Task[]>();
   showEmptyState = input<boolean>(false);
   firstTaskTitle = input<string>('None');
@@ -119,7 +118,7 @@ export class TaskBoardComponent implements AfterViewInit {
   emptySubMessage = input<string>('Add your first task!');
   filteredTasks = input<Task[]>();
 
-  // Derived state
+  // Local computed stats
   completedCount = computed(() => this.tasks().filter((t) => t.completed).length);
   pendingCount = computed(() => this.tasks().filter((t) => !t.completed).length);
 
@@ -129,8 +128,9 @@ export class TaskBoardComponent implements AfterViewInit {
   filterChanged = output<string>();
   deleteCompleted = output<void>();
   markCompleted = output<void>();
-  emptyStateClick = output<Signal<TaskFormComponent | undefined>>();
+  emptyStateClick = output<ReturnType<typeof viewChild<TaskFormComponent>>>();
 
+  // Passthrough handlers
   onTaskAdded(task: Task) {
     this.taskAdded.emit(task);
   }
