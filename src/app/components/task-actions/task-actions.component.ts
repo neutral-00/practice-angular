@@ -22,6 +22,15 @@ import { Task } from '../../models/Task';
         <option value="completed">Completed</option>
       </select>
 
+      <!-- Complete All -->
+      <button
+        (click)="markAllCompleted()"
+        [disabled]="totalPending === 0"
+        class="px-6 py-2 bg-green-600 text-white text-sm font-semibold rounded-xl hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all"
+      >
+        Mark Completed ({{ totalPending }})
+      </button>
+
       <!-- Delete All -->
       <button
         (click)="deleteAllCompleted()"
@@ -40,6 +49,11 @@ export class TaskActionsComponent {
 
   filterChanged = output<string>();
   deleteCompleted = output<void>();
+  markCompleted = output<void>();
+
+  get totalPending() {
+    return this.tasks().filter((t) => !t.completed).length;
+  }
 
   get totalCompleted() {
     return this.tasks().filter((t) => t.completed).length;
@@ -47,6 +61,10 @@ export class TaskActionsComponent {
 
   filterChangedTriggered() {
     this.filterChanged.emit(this.filterMode);
+  }
+
+  markAllCompleted() {
+    this.markCompleted.emit();
   }
 
   deleteAllCompleted() {
