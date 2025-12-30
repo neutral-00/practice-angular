@@ -1,72 +1,3 @@
-# Angular Signals Demo
-
-- [x] 10.1 declaring a field as signal
-- [x] 10.2 effect method
-- [x] 10.3 signal.update method
-- [x] 10.4 signal.set method
-
-## Brief Theory
-
-## Project Metadata
-
-- Repository: https://github.com/neutral-00/practice-angular
-- Parent branch: main
-- Working branch: 11-singal-demo
-
-## Scenario
-
-Let's create a counter app whose value is persisted in local storage. While building the app, we will learn all the fundamental concepts around angular signals
-
-## Brief Theory on Angular Signals
-
-**Angular signals are a new reactive primitive introduced in Angular that let you track and respond to state changes in a fine‑grained way.** They wrap a value and automatically notify consumers when that value changes, ensuring only the affected parts of your app re‑render.
-
----
-
-### 🔑 Key Points About Angular Signals
-
-- **Signal**: A wrapper around a value (like a variable) that can change over time. When updated, it triggers updates in any component or function that depends on it.
-- **Computed signals**: Derived values that automatically recalculate when their dependencies change.
-- **Effects**: Functions that re‑run when signals they depend on change, useful for side effects like logging or API calls.
-- **Efficiency**: Signals provide _fine‑grained reactivity_—only the components that depend on a signal update, instead of triggering a full change detection cycle.
-- **Compatibility**: They work alongside existing Angular features like RxJS and OnPush change detection.
-
----
-
-### ⚡ Why They Matter
-
-- **Simpler state management**: No need for complex observables in many cases.
-- **Predictable updates**: Changes propagate synchronously and transparently.
-- **Performance boost**: Reduces unnecessary re‑renders, making apps more efficient.
-
----
-
-👉 In short: **Angular signals are a lightweight, reactive way to manage state, making your app more predictable and performant.**
-
-## Steps
-
-### 1. Create Counter Component
-
-But first let's create a model `src/app/modles/AppEvent.ts`, that we will use later
-
-```ts
-export interface AppEvent {
-  id: string;
-  timestamp: number;
-  event: string;
-  triggeredBy: 'USER' | 'SYSTEM';
-}
-```
-
-run the below command
-
-```
-ng g c components/pencil --inline-template --skip-tests --style none --type=component
-```
-
-Now update `src/app/components/counter/counter.componen.ts` with the below code:
-
-```ts
 import { isPlatformBrowser } from '@angular/common';
 import { Component, effect, inject, PLATFORM_ID, signal } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
@@ -181,7 +112,7 @@ export class CounterComponent {
   private platformId = inject(PLATFORM_ID);
   count = signal(0);
   events = signal<AppEvent[]>([]);
-  protected readonly MAX_EVENTS = 50; // ✅ Fixed naming
+  readonly MAX_EVENTS = 50; // ✅ Fixed naming
 
   constructor() {
     // Load from localStorage on init (browser only)
@@ -214,7 +145,7 @@ export class CounterComponent {
   // ✅ NEW: Centralized addEvent method
   private addEvent(event: string, triggeredBy: 'USER' | 'SYSTEM') {
     const newEvent: AppEvent = {
-      id: crypto.randomUUID(),
+      id: crypto.randomUUID?.() ?? Date.now().toString(),
       timestamp: Date.now(),
       triggeredBy,
       event,
@@ -228,13 +159,13 @@ export class CounterComponent {
 
   increment() {
     this.count.update((v) => v + 1);
-    this.addEvent('Counter increment by User', 'USER');
+    this.addEvent('Counter increment', 'USER');
   }
 
   decrement() {
     if (this.count() > 0) {
       this.count.update((v) => v - 1);
-      this.addEvent('Counter decrement by User', 'USER');
+      this.addEvent('Counter decrement', 'USER');
     }
   }
 
@@ -246,30 +177,3 @@ export class CounterComponent {
     this.addEvent('Counter reset by User', 'USER');
   }
 }
-```
-
----
-
-### 2. Update the route
-
-Let's update the `src/app/app.routes.ts` to load the counter component
-
-```ts
-import { Routes } from '@angular/router';
-import { CounterComponent } from './components/counter/counter.component';
-
-export const routes: Routes = [
-  { path: 'counter', component: CounterComponent },
-  { path: '', redirectTo: '/counter', pathMatch: 'full' },
-];
-```
-
-Also udpate `src/app/app.html` with the below content
-
-```html
-<main class="main">
-  <router-outlet />
-</main>
-```
-
-Now in the brower hit [counter](http://localhost:4200/counter)
