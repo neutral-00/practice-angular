@@ -1,275 +1,193 @@
-# Angular Signals Demo
+# Angular Unit Test Demo
 
-- [x] 10.1 declaring a field as signal
-- [x] 10.2 effect method
-- [x] 10.3 signal.update method
-- [x] 10.4 signal.set method
+- [x] 12.1 create a 404 component
+- [x] 12.2 create unit test
 
 ## Brief Theory
+
+When angular routing doesn't match any path, we can fallback to a not found component.
 
 ## Project Metadata
 
 - Repository: https://github.com/neutral-00/practice-angular
-- Parent branch: main
-- Working branch: 11-singal-demo
+- Parent branch: 11-singal-demo
+- Working branch: 12-unit-test-demo
 
 ## Scenario
 
-Let's create a counter app whose value is persisted in local storage. While building the app, we will learn all the fundamental concepts around angular signals
-
-## Brief Theory on Angular Signals
-
-**Angular signals are a new reactive primitive introduced in Angular that let you track and respond to state changes in a fine‑grained way.** They wrap a value and automatically notify consumers when that value changes, ensuring only the affected parts of your app re‑render.
-
----
-
-### 🔑 Key Points About Angular Signals
-
-- **Signal**: A wrapper around a value (like a variable) that can change over time. When updated, it triggers updates in any component or function that depends on it.
-- **Computed signals**: Derived values that automatically recalculate when their dependencies change.
-- **Effects**: Functions that re‑run when signals they depend on change, useful for side effects like logging or API calls.
-- **Efficiency**: Signals provide _fine‑grained reactivity_—only the components that depend on a signal update, instead of triggering a full change detection cycle.
-- **Compatibility**: They work alongside existing Angular features like RxJS and OnPush change detection.
-
----
-
-### ⚡ Why They Matter
-
-- **Simpler state management**: No need for complex observables in many cases.
-- **Predictable updates**: Changes propagate synchronously and transparently.
-- **Performance boost**: Reduces unnecessary re‑renders, making apps more efficient.
-
----
-
-👉 In short: **Angular signals are a lightweight, reactive way to manage state, making your app more predictable and performant.**
+Let's create a 404 page and route to it when no other route matches. On top of it we will unit test some of this component's features.
 
 ## Steps
 
-### 1. Create Counter Component
+### 1. Create NotFound Component
 
-But first let's create a model `src/app/modles/AppEvent.ts`, that we will use later
+But first let's add the below images, that we will use later
 
-```ts
-export interface AppEvent {
-  id: string;
-  timestamp: number;
-  event: string;
-  triggeredBy: 'USER' | 'SYSTEM';
-}
-```
+- `public/oasis_morning.png`
+- `public/oasis_noon.png`
+- `public/oasis_sunset.png`
+- `public/oasis_night.png`
 
 run the below command
 
 ```
-ng g c components/pencil --inline-template --skip-tests --style none --type=component
+ng g c components/not-found --inline-template --style none --type=component
 ```
 
-Now update `src/app/components/counter/counter.componen.ts` with the below code:
+Now update `src/app/components/not-found/not-found.componen.ts` with the below code:
 
 ```ts
-import { isPlatformBrowser } from '@angular/common';
-import { Component, effect, inject, PLATFORM_ID, signal } from '@angular/core';
-import { CommonModule, DatePipe } from '@angular/common';
-import { AppEvent } from '../../models/AppEvent';
+import { Component, signal, ViewEncapsulation } from '@angular/core';
+import { RouterLink } from '@angular/router';
 
 @Component({
-  selector: 'app-counter',
+  selector: 'app-not-found',
   standalone: true,
-  imports: [CommonModule, DatePipe],
+  imports: [RouterLink],
+  encapsulation: ViewEncapsulation.Emulated,
   template: `
-    <div
-      class="max-w-md mx-auto p-8 bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 rounded-3xl shadow-2xl"
-    >
-      <!-- Persistence Status -->
-      <div class="mt-6 p-4 bg-white/10 backdrop-blur-sm rounded-2xl text-center">
-        <div class="text-indigo-100 font-medium">💾 Persisted in localStorage</div>
-        <div class="text-sm text-indigo-200 mt-1">Refreshes survive • Clears on Reset</div>
-      </div>
-
-      <!-- Counter Display -->
-      <div class="text-center my-6 text-8xl font-mono font-black text-white tracking-tight">
-        {{ count() }}
-      </div>
-
-      <!-- Liquid Glass Controls -->
-      <div class="flex flex-row gap-3 justify-center flex-wrap mb-6">
-        <!-- ➕ Increase -->
-        <button
-          (click)="increment()"
-          class="group relative flex-1 py-4 px-8 bg-white/10 backdrop-blur-xl text-white font-bold text-lg rounded-2xl
-                  border border-white/30 shadow-2xl hover:shadow-green-500/40 active:shadow-green-500/60
-                  transition-all duration-500 ease-out hover:scale-[1.02] active:scale-95 hover:bg-white/25 cursor-pointer
-                  before:absolute before:inset-0 before:bg-gradient-to-r before:from-emerald-400/30 before:to-green-400/30
-                  before:rounded-2xl before:blur-xl before:opacity-0 before:group-hover:opacity-100 before:transition-all before:duration-700
-                  after:absolute after:inset-1 after:bg-gradient-to-r after:from-emerald-200/40 after:to-green-200/40
-                  after:rounded-xl after:backdrop-blur-sm after:shadow-inner after:shadow-white/30 z-0"
-        >
-          <div
-            class="relative z-20 flex items-center justify-center gap-1 bg-black/20 px-2 py-1 rounded-xl backdrop-blur-sm"
-          >
-            <span class="text-emerald-300 text-xl drop-shadow-lg">➕</span>
-            <span class="text-white drop-shadow-md">Increase</span>
-          </div>
-        </button>
-
-        <!-- ➖ Decrease -->
-        <button
-          (click)="decrement()"
-          class="group relative flex-1 py-4 px-8 bg-white/5 backdrop-blur-xl text-white font-bold text-lg rounded-2xl
-                  border border-white/20 shadow-2xl hover:shadow-red-500/40 active:shadow-red-500/60
-                  transition-all duration-500 ease-out hover:scale-[1.02] active:scale-95 hover:bg-white/20 cursor-pointer
-                  before:absolute before:inset-0 before:bg-gradient-to-r before:from-rose-400/30 before:to-red-400/30
-                  before:rounded-2xl before:blur-xl before:opacity-0 before:group-hover:opacity-100 before:transition-all before:duration-700
-                  after:absolute after:inset-1 after:bg-gradient-to-r after:from-rose-200/30 after:to-red-200/30
-                  after:rounded-xl after:backdrop-blur-sm after:shadow-inner after:shadow-white/20 z-0
-                  disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-lg disabled:before:opacity-0"
-          [disabled]="count() <= 0"
-        >
-          <div
-            class="relative z-20 flex items-center justify-center gap-1 bg-black/20 px-2 py-1 rounded-xl backdrop-blur-sm"
-          >
-            <span class="text-rose-300 text-xl drop-shadow-lg">➖</span>
-            <span class="text-white drop-shadow-md">Decrease</span>
-          </div>
-        </button>
-
-        <!-- 🔄 Reset -->
-        <button
-          (click)="reset()"
-          class="group relative flex-1 py-4 px-12 bg-white/15 backdrop-blur-xl text-white font-bold text-lg rounded-2xl
-                  border-2 border-white/40 shadow-2xl hover:shadow-indigo-500/50 active:shadow-indigo-500/70
-                  transition-all duration-500 ease-out hover:scale-[1.02] active:scale-95 hover:bg-white/25 cursor-pointer
-                  before:absolute before:inset-0 before:bg-gradient-to-br before:from-cyan-400/40 before:to-indigo-400/40
-                  before:rounded-2xl before:blur-2xl before:opacity-0 before:group-hover:opacity-100 before:transition-all before:duration-700
-                  after:absolute after:inset-1 after:bg-gradient-to-r after:from-indigo-200/50 after:to-purple-200/50
-                  after:rounded-xl after:backdrop-blur-md after:shadow-inner after:shadow-white/40 z-0"
-        >
-          <div
-            class="relative z-20 flex items-center justify-center bg-black/20 px-2 py-1 rounded-xl backdrop-blur-sm"
-          >
-            <span class="text-cyan-300 drop-shadow-lg">🔄</span>
-            <span class="text-white drop-shadow-md ml-1">Reset</span>
-          </div>
-        </button>
-      </div>
-
-      <!-- Recent Events -->
-      <div class="p-4 bg-white/10 backdrop-blur-sm rounded-2xl">
-        <!-- Update events header -->
-        <div class="font-semibold mb-3 flex items-center gap-2 text-indigo-100">
-          📋 Recent Events ({{ events().length }} / {{ MAX_EVENTS }})
-        </div>
-
-        <div class="space-y-2 max-h-40 overflow-y-auto">
-          @for (ev of events(); track ev.id) {
-            <div class="flex justify-between items-center p-2 bg-purple-500 rounded-lg">
-              <span class="text-indigo-200 text-sm">{{ ev.event }}</span>
-              <span class="text-indigo-300 text-xs">{{
-                ev.timestamp | date: 'yy-MM-dd HH:mm:ss'
-              }}</span>
-            </div>
-          } @empty {
-            <div class="text-center text-indigo-300 text-sm py-4">No events yet</div>
-          }
-        </div>
-      </div>
+    <div class="flex flex-col items-center justify-center h-screen text-center">
+      <h1 class="text-6xl font-extrabold">
+        <span class="text-transparent bg-clip-text bg-linear-to-r from-yellow-500 to-orange-600">
+          404
+        </span>
+        🌵
+      </h1>
+      <p class="mt-4 text-lg text-gray-700">{{ greeting() }}</p>
+      <img [src]="imagePath()" alt="Desert Oasis" class="w-64 h-64 mt-6 rounded-lg shadow-lg" />
+      <a
+        routerLink="/"
+        class="mt-8 px-6 py-3 text-white bg-green-600 rounded-lg shadow hover:bg-green-700 transition"
+      >
+        🏠 Back to Home
+      </a>
     </div>
   `,
-  styles: ``,
 })
-export class CounterComponent {
-  private platformId = inject(PLATFORM_ID);
-  count = signal(0);
-  events = signal<AppEvent[]>([]);
-  protected readonly MAX_EVENTS = 50; // ✅ Fixed naming
+export class NotFoundComponent {
+  imagePath = signal(this.getOasisImage());
+  greeting = signal(this.getGreeting());
 
   constructor() {
-    // Load from localStorage on init (browser only)
-    if (isPlatformBrowser(this.platformId)) {
-      const saved = localStorage.getItem('persistentCounter');
-      if (saved) {
-        const data = JSON.parse(saved);
-        // restore counter and events
-        this.count.set(data.count || 0);
-        if (data.events) this.events.set(data.events);
-      }
-    }
-
-    // auto-save effect (runs on signal changes)
-    // suppose to be used for logging | don't produce new signal in effect.
-    // if new signals needs to be produced, use computed instead
-    effect(() => {
-      if (isPlatformBrowser(this.platformId)) {
-        localStorage.setItem(
-          'persistentCounter',
-          JSON.stringify({
-            count: this.count(),
-            events: this.events(),
-          }),
-        );
-      }
-    });
+    // Refresh every minute so both image and greeting stay in sync
+    setInterval(() => {
+      this.imagePath.set(this.getOasisImage());
+      this.greeting.set(this.getGreeting());
+    }, 30000);
   }
 
-  // ✅ NEW: Centralized addEvent method
-  private addEvent(event: string, triggeredBy: 'USER' | 'SYSTEM') {
-    const newEvent: AppEvent = {
-      id: crypto.randomUUID(),
-      timestamp: Date.now(),
-      triggeredBy,
-      event,
-    };
+  private getOasisImage(): string {
+    const hour = new Date().getHours();
 
-    this.events.update((currentEvents) => {
-      const updated = [newEvent, ...currentEvents]; // ✅ Newest first
-      return updated.slice(0, this.MAX_EVENTS); // ✅ Keep only last 50
-    });
+    if (hour >= 5 && hour < 10) return 'oasis_morning.png';
+    if (hour >= 10 && hour < 17) return 'oasis_noon.png';
+    if (hour >= 17 && hour < 20) return 'oasis_sunset.png';
+    return 'oasis_night.png';
   }
 
-  increment() {
-    this.count.update((v) => v + 1);
-    this.addEvent('Counter increment by User', 'USER');
-  }
+  private getGreeting(): string {
+    const hour = new Date().getHours();
 
-  decrement() {
-    if (this.count() > 0) {
-      this.count.update((v) => v - 1);
-      this.addEvent('Counter decrement by User', 'USER');
-    }
-  }
-
-  reset() {
-    this.count.set(0);
-    if (isPlatformBrowser(this.platformId)) {
-      localStorage.removeItem('persistentCounter');
-    }
-    this.addEvent('Counter reset by User', 'USER');
+    if (hour >= 5 && hour < 10) return 'Good morning, wanderer 🌞';
+    if (hour >= 10 && hour < 17) return 'Enjoy the midday sun ☀️';
+    if (hour >= 17 && hour < 20) return 'Sunset is near 🌇';
+    return 'Rest easy under the moon 🌙';
   }
 }
 ```
 
----
+### 2. Update the spec file
 
-### 2. Update the route
+Let's update the `src/app/components/not-found/not-found.spec.ts` to unit test this component
 
-Let's update the `src/app/app.routes.ts` to load the counter component
+```ts
+import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
+import { NotFoundComponent } from './not-found.component';
+
+describe('NotFoundComponent', () => {
+  let fixture: ComponentFixture<NotFoundComponent>;
+  let component: NotFoundComponent;
+
+  beforeEach(async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2025, 12, 23, 8));
+    // vi.setSystemTime(new Date(2025, 11, 23, 13));
+
+    await TestBed.configureTestingModule({
+      imports: [NotFoundComponent],
+      providers: [provideRouter([])],
+    }).compileComponents();
+    fixture = TestBed.createComponent(NotFoundComponent);
+    component = fixture.componentInstance;
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('should render the greeting text in the template', () => {
+    fixture.detectChanges(); // trigger initial render
+
+    const element = fixture.nativeElement as HTMLElement;
+    const paragraph = element.querySelector('p');
+
+    expect(paragraph?.textContent).toContain('Good morning, wanderer 🌞');
+  });
+
+  it('should bind the correct image src', () => {
+    fixture.detectChanges();
+
+    const element = fixture.nativeElement as HTMLElement;
+    const image = element.querySelector('img') as HTMLImageElement;
+
+    expect(image.src).toContain('oasis_morning.png');
+  });
+
+  it('should update the dom after interval runs', () => {
+    fixture.detectChanges();
+
+    // Move the time forward to noon
+    vi.setSystemTime(new Date(2025, 11, 23, 12));
+    vi.advanceTimersByTime(30_000);
+    fixture.detectChanges(); // 🔑 udpate DOM
+
+    const element = fixture.nativeElement as HTMLElement;
+    const paragraph = element.querySelector('p');
+    expect(paragraph?.textContent).toBe('Enjoy the midday sun ☀️');
+  });
+
+  it('should update greeting and image after interval when time changes', () => {
+    // Initial state (08:00)
+    expect(component.greeting()).toBe('Good morning, wanderer 🌞');
+    expect(component.imagePath()).toBe('oasis_morning.png');
+
+    // Move time forward to noon
+    vi.setSystemTime(new Date(2025, 11, 23, 12, 0));
+    vi.advanceTimersByTime(30_000); // trigger setInterval
+
+    expect(component.greeting()).toBe('Enjoy the midday sun ☀️');
+    expect(component.imagePath()).toBe('oasis_noon.png');
+  });
+});
+```
+
+Next update the `src/app/app.routes.ts` with the below code
 
 ```ts
 import { Routes } from '@angular/router';
 import { CounterComponent } from './components/counter/counter.component';
+import { NotFoundComponent } from './components/not-found/not-found.component';
 
 export const routes: Routes = [
   { path: 'counter', component: CounterComponent },
   { path: '', redirectTo: '/counter', pathMatch: 'full' },
+  { path: '**', component: NotFoundComponent },
 ];
 ```
 
-Also udpate `src/app/app.html` with the below content
+Make sure the entry for NotFoundComponent is in the last part of the routes array.
 
-```html
-<main class="main">
-  <router-outlet />
-</main>
-```
+Now in the brower hit [counter](http://localhost:4200/about)
 
-Now in the brower hit [counter](http://localhost:4200/counter)
+Next to run test, open command prompt and run `ng test`
