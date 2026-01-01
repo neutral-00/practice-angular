@@ -1,0 +1,54 @@
+<svg
+       width="190.95685mm"
+       height="50.850868mm"
+       viewBox="0 0 190.95685 50.850868"
+       version="1.1"
+       id="svg1"
+       class="lousing-logo-svg"
+       xmlns:xlink="http://www.w3.org/1999/xlink"
+       xmlns="http://www.w3.org/2000/svg"
+       xmlns:svg="http://www.w3.org/2000/svg">
+      <defs
+         id="defs1">
+        <linearGradient
+           id="linearGradient19">
+          <stop
+             style="stop-color:#9fd1d1;stop-opacity:1;"
+             offset="0.52402139"
+             id="stop20" />
+          <stop
+             style="stop-color:#fcde00;stop-opacity:1;"
+             offset="0.52402139"
+             id="stop21" />
+        </linearGradient>
+        <linearGradient
+           id="swatch14">
+          <stop
+             style="stop-color:#000000;stop-opacity:1;"
+             offset="0"
+             id="stop15" />
+        </linearGradient>
+        <linearGradient
+           xlink:href="#linearGradient19"
+           id="linearGradient21"
+           x1="39.185699"
+           y1="73.08181"
+           x2="174.39996"
+           y2="208.29608"
+           gradientUnits="userSpaceOnUse" />
+      </defs>
+      <g
+         id="layer1"
+         transform="translate(-11.314419,-115.26349)">
+        <text
+           xml:space="preserve"
+           style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:50.8px;font-family:'Noto Sans';-inkscape-font-specification:'Noto Sans, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:url(#linearGradient21);fill-opacity:1;stroke:none;stroke-width:0.265;stroke-dasharray:none;stroke-opacity:1"
+           x="6.9964657"
+           y="153.92226"
+           id="text1"><tspan
+             id="tspan1"
+             style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:50.8px;font-family:'Noto Sans';-inkscape-font-specification:'Noto Sans, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;fill:url(#linearGradient21);fill-opacity:1;stroke:none;stroke-width:0.265;stroke-dasharray:none;stroke-opacity:1"
+             x="6.9964657"
+             y="153.92226">Lousing</tspan></text>
+      </g>
+      </svg>
