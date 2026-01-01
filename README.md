@@ -154,3 +154,179 @@ Update vs code setting
 - Switch your global styles to SCSS (`styles.scss`).
 - Use `@use "tailwindcss";` at the top of `styles.scss`.
 - Keep component styles in SCSS for nesting/variables, and use Tailwind utilities in templates.
+
+## Add Json Server
+
+```
+pnpm add -D json-server@0.17.4
+```
+
+### Create Database File
+
+Create a file named `db.json` in the project root:
+
+```json
+{
+  "todos": [
+    {
+      "id": 1,
+      "title": "Learn Angular 17+",
+      "status": "in-progress"
+    }
+  ]
+}
+```
+
+### Start the JSON Server
+
+Run:
+
+```bash
+pnpm dlx json-server --watch db.json --port 3200
+```
+
+or add below to `package.json > scripts`
+
+```
+{
+  "scripts": {
+    "server": "json-server --watch db.json --port 3200"
+  }
+}
+```
+
+## Then you can run `pnpm run server`
+
+Let’s configure a proxy for the api exposed by the json server.
+In Angular, **a proxy configuration file** is commonly used to avoid CORS issues during development, and it can be wired via **`angular.json` (Angular CLI)** or indirectly via **npm scripts in `package.json`**.
+
+---
+
+## Why Proxy Configuration?
+
+During development:
+
+- Angular app → `http://localhost:4200`
+- JSON Server → `http://localhost:3200`
+
+The browser blocks this due to **CORS**.
+
+A **proxy** lets Angular forward API calls to another backend **as if they were same-origin**.
+
+---
+
+## 1. Create Proxy Configuration File
+
+Create a file at project root:
+
+`proxy.conf.json`
+
+```json
+{
+  "/api": {
+    "target": "http://localhost:3200",
+    "secure": false,
+    "changeOrigin": true,
+    "logLevel": "debug"
+  }
+}
+```
+
+### What this does
+
+- Any request starting with `/api`
+- Is forwarded to `http://localhost:3200`
+- `/api/posts` → `http://localhost:3200/posts`
+
+---
+
+## 2. Use Proxy in `angular.json` (Recommended)
+
+Open `angular.json` and update the **serve** options:
+
+```json
+{
+  "projects": {
+    "your-app-name": {
+      "architect": {
+        "serve": {
+          "options": {
+            "proxyConfig": "proxy.conf.json"
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+> This is the **official and recommended** Angular CLI approach.
+
+---
+
+## 3. (Optional) Use Proxy via `package.json`
+
+Instead of hardcoding in `angular.json`, you can pass it via CLI:
+
+`package.json`
+
+```json
+{
+  "scripts": {
+    "start": "ng serve --proxy-config proxy.conf.json"
+  }
+}
+```
+
+Then run:
+
+```bash
+npm start
+```
+
+This approach is useful when:
+
+- You want **different proxies for different environments**
+- You don’t want to touch `angular.json`
+
+---
+
+## 4. Update API Calls in Services
+
+Now change your service URLs to use `/api`.
+
+### Before
+
+```ts
+private apiUrl = 'http://localhost:3200/todos';
+```
+
+### After
+
+```ts
+private apiUrl = '/api/todos';
+```
+
+Angular dev server will proxy this automatically.
+
+---
+
+## 5. Important Notes
+
+- Proxy works **only with `ng serve`**
+- It is **not used in production builds**
+- In production, APIs should be handled via:
+  - Environment configs (`environment.ts`)
+  - Reverse proxy (NGINX, Apache, etc.)
+
+---
+
+## Quick Comparison
+
+| Method         | When to Use                          |
+| -------------- | ------------------------------------ |
+| `angular.json` | Default, clean, team-friendly        |
+| `package.json` | Multiple proxy configs / flexibility |
+| No proxy       | Only if backend handles CORS         |
+
+---
