@@ -330,3 +330,24 @@ Angular dev server will proxy this automatically.
 | No proxy       | Only if backend handles CORS         |
 
 ---
+
+## Add Angular Material
+
+Run the below command in command line
+
+```
+ng add @angular/material
+✔ Determining Package Manager
+  › Using package manager: pnpm
+✔ Searching for compatible package version
+  › Found compatible package version: 21.0.5.
+✔ Loading package information from registry
+✔ Confirming installation
+✔ Installing package
+✔ Select a pair of starter prebuilt color palettes for your Angular Material theme Cyan/Orange        [Preview:
+https://material.angular.dev?theme=cyan-orange]
+UPDATE package.json (1284 bytes)
+✔ Packages installed successfully.
+UPDATE src/styles.scss (1397 bytes)
+UPDATE src/index.html (514 bytes)
+```
