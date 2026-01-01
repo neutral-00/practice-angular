@@ -5,5 +5,14 @@
       "title": "Learn Angular 17+",
       "status": "in-progress"
     }
+  ],
+  "posts": [
+    {
+      "id": "asdfasdf",
+      "title": "Signals In Angular",
+      "text": "A signal is a wrapper around a value that notifies interested consumers when that value changes. Signals can contain any value, from primitives to complex data structures.",
+      "author": "Angular Team",
+      "publishedOn": 1767281045761
+    }
   ]
 }

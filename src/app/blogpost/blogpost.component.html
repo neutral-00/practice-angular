@@ -1,0 +1,8 @@
+<div class="max-w-2xl mx-auto p-6">
+  <h1 class="text-2xl font-semibold mb-4">Create Post</h1>
+  <form #postForm="ngForm" (ngSubmit)="publish()" class="space-y-4">
+    <!-- <mat-form-field class="w-full"> -->
+    <input matInput name="title" placeholder="Post Title" required [(ngModel)]="model.title" />
+    <!-- </mat-form-field> -->
+  </form>
+</div>
