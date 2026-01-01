@@ -14,10 +14,11 @@ describe('App', () => {
     expect(app).toBeTruthy();
   });
 
-  it('should render title', async () => {
+  it('should render lousing logo', async () => {
     const fixture = TestBed.createComponent(App);
     await fixture.whenStable();
     const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.querySelector('h1')?.textContent).toContain('Hello, practice-angular');
+    const logoElement = compiled.querySelector('#lousing-logo') as HTMLImageElement;
+    expect(logoElement?.src).toContain('lousing-logo.svg');
   });
 });
