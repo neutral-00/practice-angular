@@ -13,6 +13,27 @@
       "text": "A signal is a wrapper around a value that notifies interested consumers when that value changes. Signals can contain any value, from primitives to complex data structures.",
       "author": "Angular Team",
       "publishedOn": 1767281045761
+    },
+    {
+      "id": "ccb61202-8dd9-486c-ad46-2cc06b6f31b3",
+      "title": "Routing In Angular",
+      "text": "Routing in angular is a way to load different routes based on browser url. The routing framework takes charge when url changes and load a corresponding component. The configuration is defined src/app/app.routing.ts",
+      "author": "Arvind",
+      "publishedOn": 1767327891467
+    },
+    {
+      "id": "34041e3a-3983-4768-b949-983c2a24b996",
+      "title": "Java Streams API",
+      "text": "Streams allow you to treat data processing as a pipeline of functions, which is highly efficient for manipulating collections of objects. \nNo Mutation: Streams do not modify the original data source; they produce new streams with transformations applied.\nPipelining: Operations can be chained together (e.g., stream.filter().map().collect()). \nBy simply changing .stream() to .parallelStream(), you can leverage multi-core processors to process large datasets faster",
+      "author": "Arvind",
+      "publishedOn": 1767328999066
+    },
+    {
+      "id": "2557f76b-37b1-46c5-af8a-2572f49afadf",
+      "title": "Angular State Management - NgRx",
+      "text": "Learning NgRx is highly beneficial for Angular developers, particularly when working on medium-to-large-scale applications. It provides a structured, predictable way to manage application state based on the Redux pattern, which helps address the complexity that arises when multiple components share data. By using immutable data structures and memoized selectors (which cache results), NgRx helps optimize rendering.",
+      "author": "Google Gemini",
+      "publishedOn": 1767330562414
     }
   ]
 }

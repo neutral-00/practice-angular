@@ -1,8 +1,43 @@
 <div class="max-w-2xl mx-auto p-6">
   <h1 class="text-2xl font-semibold mb-4">Create Post</h1>
   <form #postForm="ngForm" (ngSubmit)="publish()" class="space-y-4">
-    <!-- <mat-form-field class="w-full"> -->
-    <input matInput name="title" placeholder="Post Title" required [(ngModel)]="model.title" />
-    <!-- </mat-form-field> -->
+    <mat-form-field class="w-full">
+      <mat-label>Post Title</mat-label>
+      <input matInput name="title" required [(ngModel)]="model.title" />
+    </mat-form-field>
+    <mat-form-field class="w-full">
+      <mat-label>Post body</mat-label>
+      <textarea
+        matInput
+        name="text"
+        maxlength="500"
+        rows="5"
+        required
+        [(ngModel)]="model.text"
+      ></textarea>
+      <mat-hint align="end">{{ model.text?.length || 0 }}/500</mat-hint>
+    </mat-form-field>
+    <mat-form-field class="w-full">
+      <mat-label>Author Name</mat-label>
+      <input matInput name="author" maxlength="100" required [(ngModel)]="model.author" />
+    </mat-form-field>
+    <button mat-raised-button color="primary" type="submit">Publish</button>
   </form>
+
+  <section class="mt-10">
+    <h2 class="text-xl semi-bold mb-4">Recent Post</h2>
+    <mat-accordion>
+      @for (post of posts(); track post.id) {
+        <mat-expansion-panel>
+          <mat-expansion-panel-header>
+            <mat-panel-title>{{ post.title }}</mat-panel-title>
+            <mat-panel-description>
+              {{ post.author }} • {{ post.publishedOn | date: 'medium' }}
+            </mat-panel-description>
+          </mat-expansion-panel-header>
+          <p class="whitespace-pre-line">{{ post.text }}</p>
+        </mat-expansion-panel>
+      }
+    </mat-accordion>
+  </section>
 </div>
