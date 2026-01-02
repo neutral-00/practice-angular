@@ -34,6 +34,20 @@
       "text": "Learning NgRx is highly beneficial for Angular developers, particularly when working on medium-to-large-scale applications. It provides a structured, predictable way to manage application state based on the Redux pattern, which helps address the complexity that arises when multiple components share data. By using immutable data structures and memoized selectors (which cache results), NgRx helps optimize rendering.",
       "author": "Google Gemini",
       "publishedOn": 1767330562414
+    },
+    {
+      "id": "052023a0-c46f-433d-9b53-a10181f46ff0",
+      "title": "Spring Core",
+      "text": "Spring is a goto framework for building enterprise web applications. The core spring has all the necessary tool to implement a lot of features. Spring boot is a  wrapper around spring core that makes spring even more awesome. But one should be familiar with Spring. It's like learing to run before flying.",
+      "author": "Arvind",
+      "publishedOn": 1767337083154
+    },
+    {
+      "id": "cbcd67d0-2fa6-465a-b2eb-43214d82a830",
+      "title": "Spring AOP",
+      "text": "You want to deal with cross cutting concerns like measuring the execution time of all the methods in a package/class or you want to log certain statements before and after all the methods calls, then you should definitely checkout what Spring AOP has in offer for you.",
+      "author": "Arvind",
+      "publishedOn": 1767339895302
     }
   ]
 }

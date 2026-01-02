@@ -23,11 +23,11 @@ import { MatExpansionModule } from '@angular/material/expansion';
 export class BlogpostComponent implements OnInit {
   posts = signal<Post[]>([]);
 
-  model: Partial<Post> = {
-    title: '',
-    text: '',
-    author: '',
-  };
+  // model: Partial<Post> = {
+  //   title: '',
+  //   text: '',
+  //   author: '',
+  // };
 
   @ViewChild('postForm') postForm!: NgForm;
 
@@ -45,18 +45,17 @@ export class BlogpostComponent implements OnInit {
   }
 
   publish(): void {
-    if (!this.model.text) return;
+    if (this.postForm.invalid) return;
 
     const newPost: Post = {
       id: crypto.randomUUID(),
-      title: this.model.title!,
-      text: this.model.text!,
-      author: this.model.author!,
+      title: this.postForm.value.title!,
+      text: this.postForm.value.text!,
+      author: this.postForm.value.author!,
       publishedOn: Date.now(),
     };
 
     this.postService.createPost(newPost).subscribe(() => {
-      this.model = { title: '', text: '', author: '' };
       this.loadPost();
     });
   }
